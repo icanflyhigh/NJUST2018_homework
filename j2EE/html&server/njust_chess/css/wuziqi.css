@@ -1,0 +1,8 @@
+#chess{
+    position:absolute;
+    left: 30%;
+    top: 0px;
+    display:block;
+    margin:40px auto;
+    box-shadow:-2px -2px 2px #efefef,5px 5px 5px #b9b9b9;
+}

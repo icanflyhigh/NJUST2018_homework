@@ -1,0 +1,77 @@
+div#wuzi
+{
+    position:absolute;
+    top:10%;
+    left:5%;
+    width:30%;
+    height:80%;
+    font-size: 40px;
+    text-align: center;
+    font-family:"Times New Roman", Times, sans-serif;
+    background-color: coral;
+    z-index:-5;
+    background-image:url(../img/four.png);
+    background-size:100%100%;
+}
+#backimg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -10;
+    zoom: 1;
+    background-color: #fff;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    background-position: center 0;
+}
+#wuzitable{
+    position:absolute;
+    top:60%;
+    left:7.5%;
+}
+div#tobe {
+    position: absolute;
+    top: 10%;
+    left: 65%;
+    width: 30%;
+    height: 80%;
+    font-size: 40px;
+    text-align: center;
+    font-family: "Times New Roman", Times, sans-serif;
+    background-color: coral;
+    z-index: -5;
+    background-image: url(../img/four.png);
+    background-size: 100%100%;
+}
+input {
+    outline-style: none;
+    border: 0px;
+    outline-color: aliceblue;
+}
+.button1 {
+    height: 50px;
+    width: 150px;
+    text-align: center;
+    line-height: 20px;
+    padding: 0.3em;
+    font: 16px Arial,sans-serif bold;
+    font-style: normal;
+    text-decoration: none;
+    margin: 20px;
+    vertical-align: text-bottom;
+    zoom: 1;
+    outline: none;
+    font-size-adjust: none;
+    font-stretch: normal;
+    border-radius: 50px;
+    box-shadow: 0px 1px 2px rgba(0,0,0,0.2);
+    text-shadow: 0px 1px 1px rgba(0,0,0,0.3);
+    background: url(../img/butt.png);
+    background-size: 100% 100%;
+}
+#find {
+    outline-style: auto;
+    outline-color: black;
+}

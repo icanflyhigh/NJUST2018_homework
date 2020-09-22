@@ -1,0 +1,55 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head lang="zh-CN">
+    <meta charset="UTF-8">
+    <title>五子棋</title>
+    <!-- <link rel="stylesheet" href="css/wuziqi.css" /> -->
+    <link rel="stylesheet" href="css/game_ui.css"/>
+    
+</head>
+
+<body>
+
+    <div id="backimg" style="background-image: url(./img/eight.jpg);"></div>
+    <!-- <div id="plat_name">
+        南理工在线棋牌对战平台
+    </div> -->
+        <div id="player1">
+            对方玩家：<br><div id="op_player_name"></div>
+            <!--<div id="op_player_id"></div><br>-->
+        </div>
+        <div id="myname">
+            
+            本方玩家： <br>
+            <div id="user_id"></div><br>
+        </div>
+    
+    <div id="menu">
+        <button type="button" id="ready_but" class="button1" onclick="ready_click('ready_but');"
+                onmouseover="ready_focus('ready_but');">准备</button>
+            
+        
+        <!-- 注意："准备"要正好 -->
+        <br>
+        <button type="button" id="leave_but" class="button1"
+                onmouseover="ready_focus('leave_but');" onclick="leave_click('leave_but');">离开</button>
+            
+        
+        <br>
+        <button type="button" id="AI_but" class="button1" onclick="AI_click('AI_but')"
+                onmouseover="ready_focus('AI_but');">
+            与电脑<br>对战
+        </button>
+
+    </div>
+    <!-- <div id="sse">
+        <a href="javascript:WebSocketTest()">运行 WebSocket</a>
+     </div> -->
+
+    <canvas id="chess"></canvas>
+</body>
+<!-- <script src="js/wuziqi.js"></script> -->
+<script src="js/util.js"></script>
+<!-- <script src="js/web.js"></script> -->
+</html>

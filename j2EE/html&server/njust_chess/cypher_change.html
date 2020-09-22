@@ -1,0 +1,63 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>修改密码</title>
+    <link rel="stylesheet" href="css/change.css" />
+</head>
+<body>
+    <div id="title">
+        修改<br />密码
+    </div>
+
+    <div id="backimg" style="background-image: url(./img/eight.jpg);"></div>
+    <table width="800" border="0" align="center" cellpadding="0" cellspacing="0" id="tab">
+        <tr align="center">
+
+            <td>
+                <div class="button1">账号</div>
+            </td>
+            <td>
+                <form method="post" name="form1" target="_self">
+                    <input name="name" type="text" value="输入你的账号" id="account" size="16" maxlength="16">
+
+                </form>
+            </td>
+        </tr>
+        <tr align="center">
+            <td>
+                <div class="button1">原密码</div>
+            </td>
+            <td>
+                <form method="post" name="form1" target="_self">
+                    <input name="password" type="password" size="16" id="password" maxlength="16">
+                </form>
+            </td>
+        </tr>
+        <tr align="center">
+            <td>
+                <div class="button1">新密码</div>
+            </td>
+            <td>
+                <form method="post" name="form1" target="_self">
+                    <input name="password2" type="password" size="16" id="password2" maxlength="16">
+                </form>
+            </td>
+        </tr>
+        <tr align="center">
+            <td>
+                <form method="post" name="form1" target="_self">
+                    <input type="button" value="确认修改" onclick="change()"  class="button2"/>
+                </form>
+            </td>
+            <td>
+                <form method="post" name="form1" target="_self">
+                    <input type="button" value="返回" onclick="back()"  class="button2"/>
+                </form>
+            </td>
+            </td>
+        </tr>
+    </table>
+</body>
+<script src="js/cypher_change.js"></script>
+</html>

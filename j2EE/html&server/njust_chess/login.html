@@ -1,0 +1,74 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>登录界面</title>
+    <link rel="stylesheet" href="css/login.css" />
+</head>
+<body>
+    <div id="title">
+        南京理工大学<br>在线棋牌平台
+    </div>
+
+    <div id="backimg" style="background-image: url(./img/eight.jpg);"></div>
+
+    <table width="800" border="0" align="center" cellpadding="0" cellspacing="0" id="tab">
+        <!-- <tr align="center">
+        <td colspan="2">
+            <img src="img/wuzibg.jpg" width="300" height="234" />
+        </td>
+    </tr>-->
+        <tr align="center" height="100">
+            <td colspan="2">
+                <form method="post" name="form1" target="_self">
+                    <div class="button1">账号</div>
+                    <!--
+                受到确认信息后目标地址为main_ui.html;此处需要增加cookie，记录用户的id；
+            -->
+                </form>
+            </td>
+            <td colspan="2">
+                <form method="post" name="form1" target="_self">
+                    <input name="name" type="text" value="1234" id="account" size="16" maxlength="16">
+                </form>
+            </td>
+        </tr>
+        <tr align="center" height="100">
+            <td colspan="2">
+                <form method="post" name="form1" target="_self">
+                    <div class="button1">密码</div>
+                </form>
+            </td>
+            <td colspan="2">
+                <form method="post" name="form1" target="_self">
+                    <input name="password" type="password" value="1234" size="16" id="password" maxlength="16">
+                    <!-- <input type="button" value="进入游戏" onclick="login()" ; />-->
+                </form>
+            </td>
+        </tr>
+        <tr align="center" height="100">
+            <td>
+                <form action="cypher_change.html" method="post" name="form3" target="_self">
+                    <input type="submit" value="修改密码" class="button2"/>
+                </form>
+            </td>
+            <td>
+                <form action="cypher_forget.html" method="post" name="form2" target="_self">
+                    <input type="submit" value="忘记密码"class="button2" />
+                </form>
+            </td>
+            <td>
+
+                <form action="register.html" method="post" name="form3" target="_self">
+                    <input type="submit" value="注册账号" class="button2"/>
+                </form>
+            </td>
+            <td>
+                <form method="post" name="form1" target="_self">
+                    <input type="button" value="进入游戏" onclick="login()" ; class="button2"/>
+            </td>
+        </tr>
+    </table>
+</body>
+<script src="js/login.js"></script>
+</html>

@@ -1,0 +1,45 @@
+﻿<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+    <title>游戏选择界面</title> 
+    <link rel="stylesheet" href="css/choose_ui.css" />
+    </head>
+    <body>
+        <div id="backimg" style="background-image: url(./img/seven.jpg);"></div>
+        <div id="wuzi">
+            五 子 棋
+        </div>
+        <table width="400" border="0" cellpadding="0" cellspacing="0" id="wuzitable">
+            <tr align="center" height="100">
+                <td>
+                    <form method="post" name="form5" target="_self">
+                        <input type="button" value="创建房间" onclick="createroom()" class="button1" />
+                    </form>
+                </td>
+                <td>
+                    <form method="post" name="form6" target="_self">
+                        <input type="button" value="快速加入" onclick="quickgame()" class="button1" />
+                    </form>
+                </td>
+            </tr>
+            <tr align="center" height="100">
+
+                <td>
+                    <form method="post" name="form7" target="_self">
+                        <input name="roomnum" type="text" value="输入房间号" id="find" size="10" maxlength="16">
+                    </form>
+                </td>
+                <td>
+                    <form method="post" name="form7" target="_self">
+                        <input type="button" value="加入房间" onclick="joinroom()" class="button1" />
+                    </form>
+                </td>
+            </tr>
+        </table>
+        <div id="tobe">
+            To be continue
+        </div>
+    </body>
+<script src="js/choose.js"></script>
+</html>
