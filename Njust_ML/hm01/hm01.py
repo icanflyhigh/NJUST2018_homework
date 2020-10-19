@@ -76,8 +76,8 @@ plt.show()
 y_hat = Net.forward(X)
 print(y_hat)
 print('loss : ', loss(y_hat, Y))
-
-
+X_test = [[2014-mean]]
+print('2014: %.2f' % (Net.forward(X_test)[0][0]))
 
 
 # X = [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013]
