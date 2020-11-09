@@ -12,6 +12,8 @@ import torch_sparse as sparse
 import handwritten as hd
 import time
 
+
+random.seed(0)
 # 加载数据
 file_path = 'D:/pycharm_project/datasets/mat/dblp-s.mat'
 data = loadmat(file_path)
@@ -79,7 +81,13 @@ def train1(NS, dim, train_num, label, tau, lmda):
     return B, w
 
 
-def low_bitlize(x, num1=np.int(32)):
+def low_bitlize(x, num1=np.int(16)):
+    """
+
+    :param x: 输入矩阵
+    :param num1: 将矩阵变成 +-1 和 +- num1
+    :return:
+    """
     if np.isnan(x).any():
         print("nan")
     # x = np.where(np.abs(x) < 1, np.int(random.binomial(1, (x + 1.) / 2)), np.int(x))
@@ -89,12 +97,12 @@ def low_bitlize(x, num1=np.int(32)):
     idx = np.abs(x) < 1
     # x[idx] = random.binomial(x[idx].shape, (x[idx] + 1.) / 2)
 
-    idx = np.abs(x) >= 32
-    ret[idx] = ret[idx] * 33
+    idx = np.abs(x) >= num1
+    ret[idx] = ret[idx] * (num1+1)
     idx = np.bitwise_not(idx)
     # print( np.abs(x[idx]) / 32)
-    oper = random.binomial(np.ones(x[idx].shape, dtype=int), np.abs(x[idx]) / 32)
-    oper = np.where(oper == 1, 32, 0)
+    oper = random.binomial(np.ones(x[idx].shape, dtype=int), np.abs(x[idx]) / num1)
+    oper = np.where(oper == 1, num1, 0)
     ret[idx] = np.bitwise_xor(ret[idx], oper.reshape(-1))
     # print(ret.shape)
     return ret
@@ -136,10 +144,10 @@ def test(B, weight):
 train_num = np.int(W.shape[0] * train_ratio)
 dim = 128
 tau = 8.5
-lmda = 0.33
+lmda = 0.25
 start = time.time()
-B, weight = train1(NS, dim, train_num, label.reshape(-1, len(label_set)), tau, lmda)
-test(B, weight)
+# B, weight = train1(NS, dim, train_num, label.reshape(-1, len(label_set)), tau, lmda)
+# test(B, weight)
 B, weight = train2(NS, dim, train_num, label.reshape(-1, len(label_set)), tau, lmda)
 test(B, weight)
 # 分出训练和测试部分
