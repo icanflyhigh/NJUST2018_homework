@@ -1,0 +1,11 @@
+1、需要的包 
+numpy as np
+scipy
+sklearn
+pandas 
+itertools
+matplotlib 
+matplotlib
+xlwt
+2、运行 setup.py 来处理数据
+3、修改 naive_maozhen.py中的代码来运行4个实验
