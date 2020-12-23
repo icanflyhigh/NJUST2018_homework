@@ -1,0 +1,252 @@
+
+pure DNE:
+    256 dim acc : 75.73 %
+    PCA初始化B的结果：
+    256 dim acc : 58.86 %
+    loss: 6324685423.119175
+double bit:
+    128 dim acc : 72.23 %
+
+    ___      ___
+    |          |
+    |          |
+    |          |
+
+
+ 18243321136.68194
+train acc : 4.37 %
+test acc : 6.72 %
+18843254911.129295
+train acc : 74.20 %
+test acc : 76.07 %
+18576773254.68226
+train acc : 74.32 %
+test acc : 73.02 %
+18722647046.16732
+train acc : 74.46 %
+test acc : 75.96 %
+18568015299.77422
+train acc : 74.30 %
+test acc : 72.97 %
+
+
+low_bit_DNE_2
+1252432558280.8293
+train acc : 0.95 %
+test acc : 1.98 %
+1243941577622.417
+train acc : 83.27 %
+test acc : 85.55 %
+___________________________________________________________________________
+LQANR:
+naive:
+D:\Anaconda\envs\pytorch\python.exe D:/pycharm_project/DNE/LQANR.py
+5.011694669723511
+epoch  1
+1631021.654586252
+epoch  2
+36700.59270824311
+epoch  3
+27451.360321371787
+epoch  4
+27105.26723997302
+epoch  5
+26883.283247692667
+epoch  6
+26637.164479544466
+epoch  7
+26437.249173085653
+epoch  8
+26282.773670686733
+epoch  9
+26079.242349623888
+epoch  10
+25931.074955262735
+D:\Anaconda\envs\pytorch\lib\site-packages\sklearn\svm\_base.py:977: ConvergenceWarning: Liblinear failed to converge, increase the number of iterations.
+  "the number of iterations.", ConvergenceWarning)
+              precision    recall  f1-score   support
+
+           0       0.91      0.91      0.91       160
+           1       0.94      0.95      0.94       197
+           2       0.88      0.91      0.90       367
+           3       0.78      0.81      0.80       307
+           4       0.96      0.94      0.95       387
+           5       0.89      0.88      0.88       267
+           6       0.91      0.89      0.90       752
+
+    accuracy                           0.90      2437
+   macro avg       0.90      0.90      0.90      2437
+weighted avg       0.90      0.90      0.90      2437
+
+              precision    recall  f1-score   support
+
+           0       0.85      0.77      0.81        22
+           1       0.65      0.58      0.61        19
+           2       0.85      0.82      0.84        50
+           3       0.66      0.72      0.69        29
+           4       0.89      0.92      0.90        36
+           5       0.73      0.80      0.76        30
+           6       0.86      0.85      0.85        85
+
+    accuracy                           0.81       271
+   macro avg       0.78      0.78      0.78       271
+weighted avg       0.81      0.81      0.81       271
+
+train acc : 89.66 %
+test acc : 80.81 %
+
+Process finished with exit code 0
+
+4.72900128364563
+epoch  1
+1631399.7403183961
+epoch  2
+36686.62298708791
+epoch  3
+27443.28668084688
+epoch  4
+27078.574291466386
+epoch  5
+26878.574532507344
+epoch  6
+26638.483599581574
+epoch  7
+26414.845659350332
+epoch  8
+26206.94309616726
+epoch  9
+26179.40086511836
+epoch  10
+25949.46524877962
+              precision    recall  f1-score   support
+
+           0       0.92      0.92      0.92       159
+           1       0.90      0.93      0.91       194
+           2       0.88      0.89      0.88       375
+           3       0.80      0.82      0.81       313
+           4       0.96      0.97      0.96       378
+           5       0.90      0.90      0.90       265
+           6       0.92      0.90      0.91       753
+
+    accuracy                           0.90      2437
+   macro avg       0.90      0.90      0.90      2437
+weighted avg       0.90      0.90      0.90      2437
+
+D:\Anaconda\envs\pytorch\lib\site-packages\sklearn\svm\_base.py:977: ConvergenceWarning: Liblinear failed to converge, increase the number of iterations.
+  "the number of iterations.", ConvergenceWarning)
+              precision    recall  f1-score   support
+
+           0       0.80      0.94      0.86        17
+           1       0.65      0.69      0.67        16
+           2       0.88      0.78      0.82        54
+           3       0.72      0.85      0.78        27
+           4       0.92      0.92      0.92        37
+           5       0.70      0.72      0.71        32
+           6       0.86      0.82      0.84        88
+
+    accuracy                           0.82       271
+   macro avg       0.79      0.82      0.80       271
+weighted avg       0.82      0.82      0.82       271
+
+train acc : 90.03 %
+test acc : 81.55 %
+
+Process finished with exit code 0
+
+
+
+
+
+
+    accuracy                           0.92      2437
+   macro avg       0.91      0.93      0.92      2437
+weighted avg       0.92      0.92      0.92      2437
+
+              precision    recall  f1-score   support
+
+           0       0.85      1.00      0.92        17
+           1       0.76      0.76      0.76        17
+           2       0.77      0.90      0.83        41
+           3       0.94      0.77      0.85        39
+           4       0.92      0.94      0.93        36
+           5       0.82      0.87      0.84        31
+           6       0.93      0.87      0.90        90
+
+    accuracy                           0.87       271
+   macro avg       0.86      0.87      0.86       271
+weighted avg       0.88      0.87      0.87       271
+
+train acc : 91.71 %
+test acc : 87.08 %
+
+
+              precision    recall  f1-score   support
+
+           0     0.9187    0.9130    0.9159       161
+           1     0.9000    0.9424    0.9207       191
+           2     0.9074    0.9554    0.9308       359
+           3     0.8777    0.8383    0.8576       334
+           4     0.9711    0.9635    0.9673       384
+           5     0.9132    0.9202    0.9167       263
+           6     0.9496    0.9356    0.9425       745
+
+    accuracy                         0.9270      2437
+   macro avg     0.9197    0.9241    0.9216      2437
+weighted avg     0.9271    0.9270    0.9268      2437
+
+              precision    recall  f1-score   support
+
+           0     0.9000    0.8182    0.8571        22
+           1     0.8235    0.7368    0.7778        19
+           2     0.8125    0.9512    0.8764        41
+           3     0.9375    0.8824    0.9091        34
+           4     0.9189    0.9714    0.9444        35
+           5     0.7879    0.8125    0.8000        32
+           6     0.9167    0.8750    0.8953        88
+
+    accuracy                         0.8782       271
+   macro avg     0.8710    0.8639    0.8657       271
+weighted avg     0.8807    0.8782    0.8779       271
+
+train acc : 92.70 %
+test acc : 87.82 %
+
+
+epoch  13
+              precision    recall  f1-score   support
+
+           0     0.9250    0.9308    0.9279       159
+           1     0.9250    0.9343    0.9296       198
+           2     0.9259    0.9642    0.9447       363
+           3     0.9091    0.8735    0.8909       332
+           4     0.9711    0.9763    0.9737       379
+           5     0.9283    0.9498    0.9389       259
+           6     0.9605    0.9438    0.9521       747
+
+    accuracy                         0.9413      2437
+   macro avg     0.9350    0.9390    0.9368      2437
+weighted avg     0.9414    0.9413    0.9412      2437
+
+              precision    recall  f1-score   support
+
+           0     0.9000    0.9000    0.9000        20
+           1     0.8235    0.7368    0.7778        19
+           2     0.8333    0.9302    0.8791        43
+           3     0.9375    0.8571    0.8955        35
+           4     0.8919    0.9706    0.9296        34
+           5     0.7879    0.8125    0.8000        32
+           6     0.9286    0.8864    0.9070        88
+
+    accuracy                         0.8819       271
+   macro avg     0.8718    0.8705    0.8699       271
+weighted avg     0.8839    0.8819    0.8817       271
+
+train acc : 94.13 %
+test acc : 88.19 %
+
+
+nn:
+epoch 8, train acc: 100.00 %  test acc: 84.50 %
+bnn:
+epoch 17, train acc: 76.08 %  test acc: 67.53 %
+epoch 19, train acc: 78.13 %  test acc: 67.90 %
