@@ -1,0 +1,13 @@
+#include"iostream"
+using namespace std;
+int main()
+{
+    const double _b12=1e-5;
+    while(_b12 < 0)
+    {
+        int a05=int(.13);
+        double 12ab__= 013.24;
+        break;
+    }
+    return 0;
+}
