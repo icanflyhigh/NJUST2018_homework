@@ -1,7 +1,7 @@
 // author: M@
 # define m_
 #define _CRT_SECURE_NO_WARNINGS
-// #define _DEBUG_
+#define _DEBUG_
 #pragma comment(linker, "/STACK:102400000,102400000") 
 #include<iostream>
 #include<stdlib.h>
@@ -109,6 +109,7 @@ class syntax_parser
 	map<int, set<int>> first_set; // first集
 	vector<int> s_stack;
 	vector<int> V_stack;
+	set<string> Variable;
 	int acc_flag;// 标示规约的状态0规约中  1规约成功 2规约失败
 
 	void output()
@@ -574,7 +575,7 @@ class syntax_parser
 		
 	}
 
-	// 分析 返回错误类型，或者接受 0接受 1不识别的Vt 2拒绝
+	// 分析序列 返回错误类型，或者接受 0接受 1不识别的Vt 2拒绝
 	int parse(vector<string> & s)
 	{
 		s.push_back(V_list[0]);
@@ -636,10 +637,64 @@ class syntax_parser
 			}
 			puts("\n");
 #endif
-			
 		}
 
 		return 0;
+	}
+	
+	void parse_begin()
+	{
+		s_stack.clear();
+		V_stack.clear();
+		s_stack.push_back(0);
+		V_stack.push_back(0);
+		Variable.clear();
+	}
+	// 分析序列 返回错误类型，或者接受 -1程序错误 0接受 1不识别的Vt 2拒绝 3处理中 
+	int parse_Vt(string  s)
+	{
+		int idx = V_idx(s, false);
+		if(idx == V_list.size()) // 未识别Vt
+		{
+			return 1;
+		}
+		int back = s_stack.back();
+		if(go[back ].find(idx) != go[back ].end())
+		{
+			V_stack.push_back(idx);
+			s_stack.push_back(go[back ][idx]);
+			return 3;
+		}
+		else if(reverse[back ].find(idx) != reverse[back ].end())
+		{
+			
+			int form_idx = reverse[back ][idx];
+			int cnt = form_list[form_idx].right.size();
+			// 特判空产生式
+			if(form_list[reverse[back ][idx]].right[0] == 0)
+			{
+				cnt = 0;
+			}
+			while(cnt--)
+			{
+				s_stack.pop_back();
+				V_stack.pop_back();
+			}
+			V_stack.push_back(form_list[form_idx].left);
+			if(V_stack.size() == 2 && V_stack.back() == 1)
+			{
+				return 0;
+			}
+			int tl = s_stack.size();
+			s_stack.push_back(go[s_stack[tl - 1]][form_list[form_idx].left]);
+			// 规约不会消耗下一个符号
+			return parse_Vt(s);
+		}
+		else // 输入错误，拒绝接受
+		{
+			return 2;
+		}
+		return -1;
 	}
 
 	int str2Num(const string  s)
@@ -649,6 +704,7 @@ class syntax_parser
 		{
 			ret *= 10;
 			ret += s[p] - '0';
+			p++;
 		}
 		return ret;
 	}
@@ -657,6 +713,10 @@ class syntax_parser
 	void parse_code()
 	{
 		string buf;
+		// 开始处理，初始化，感觉有点类似openGL
+		parse_begin();
+		int result;
+		bool have_main = false;
 		while(getline(f2, buf))
 		{
 			int bp = 0, pp = 0;
@@ -666,24 +726,102 @@ class syntax_parser
 				bp++;
 			}
 			int line_idx = str2Num(buf.substr(pp, bp - pp));
+			
 			// 读取Vt
-			pp = bp;
+			pp = ++bp;
 			while(buf[bp] != ' ')
 			{
 				bp++;
 			}
 			string Vt = buf.substr(pp, bp - pp);
 			// 读取词性
-			pp = bp;
+			pp = ++bp;
 			while(buf[bp] != 0)
 			{
 				bp++;
 			}
 			string type = buf.substr(pp, bp - pp);
-
 			//TODO 接下来就是根据Vt细致地处理，然后扔到parse里面去
-			
+			// 如果Vt是关键字，op，界符，限定词，则将原来的符号扔进去
+			// TODO 处理main
+			if(type == "关键词"  || type == "界符")
+			{
+				if(Vt == "main")
+				{
+					if(have_main == true)
+					{
+						// 4出现多个main
+						result = 4;
+					}
+					else
+					{
+						have_main = true;
+						result = parse_Vt("标识符");
+					}
+				}
+				else
+				{
+					result = parse_Vt(Vt);
+				}
+			}
+			else if(type == "标识符")
+			{
+				result = parse_Vt(type);
+			}
+			else  if(type == "操作符")
+			{
+				if(Vt == "=")
+				{
+					result = parse_Vt(Vt);
+				}
+				else
+				{
+					result = parse_Vt(type);
+				}
+			}
+			else  if(type == "常量" || type == "限定符")// 如果是常数 标识符 则把type扔进去
+			{
+				result = parse_Vt(type);
+			}
+			else
+			{
+				result = 1;
+			}
+			cout << line_idx << "  " << result << endl;
+			if(result == 2)
+			{
+				break;
+			}
+			#ifdef _DEBUG_
+			for(auto & s:s_stack)
+			{
+				cout << s;
+			}
+			puts("");
+			for(auto & v:V_stack)
+			{
+				cout << V_list[v];
+			}
+			puts("\n");
+			#endif
+
 		}
+		result = parse_Vt(end_s);
+		cout << result << endl;
+		#ifdef _DEBUG_
+		for(auto & s:s_stack)
+		{
+			cout << s;
+		}
+		puts("");
+		for(auto & v:V_stack)
+		{
+			cout << V_list[v];
+		}
+		puts("\n");
+		#endif
+		
+		// cout << result << endl;
 	}
 
 	void end()
@@ -708,17 +846,16 @@ int main()
 	string file_path = "rjks/task2/syntax.txt";
 	// string file_path = "input.txt";
 	string code_path = "rjks/task2/token_list.txt";
-	syntax_parser sp(file_path);
+	syntax_parser sp(file_path, code_path);
 	sp.read_syntax();
 	sp.generate_clan();
-	#ifdef _DEBUG_
-	sp.output();
-	#endif
-	vector<string> test1 = {"标识符", "=", "(","常数",")", ";"};
-	vector<string> test2 = {"标识符",";"};
-	cout << sp.parse(test1) << endl;
-	puts("------------------------------");
-	cout << sp.parse(test2) << endl;
+	
+	// vector<string> test1 = {"void", "标识符", "(","int", "标识符",")", "{", ";", "}"};
+	// vector<string> test2 = {"标识符",";"};
+	// cout << sp.parse(test1) << endl;
+	// puts("------------------------------");
+	// cout << sp.parse(test2) << endl;
+	sp.parse_code();
 	sp.end();
 #ifdef m_
 	fclose(stdin);
