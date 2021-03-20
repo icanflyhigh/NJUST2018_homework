@@ -717,6 +717,8 @@ class syntax_parser
 		parse_begin();
 		int result;
 		bool have_main = false;
+		int line_idx;
+		string type, Vt;
 		while(getline(f2, buf))
 		{
 			int bp = 0, pp = 0;
@@ -725,7 +727,7 @@ class syntax_parser
 			{
 				bp++;
 			}
-			int line_idx = str2Num(buf.substr(pp, bp - pp));
+			line_idx = str2Num(buf.substr(pp, bp - pp));
 			
 			// 读取Vt
 			pp = ++bp;
@@ -733,17 +735,15 @@ class syntax_parser
 			{
 				bp++;
 			}
-			string Vt = buf.substr(pp, bp - pp);
+			Vt = buf.substr(pp, bp - pp);
 			// 读取词性
 			pp = ++bp;
 			while(buf[bp] != 0)
 			{
 				bp++;
 			}
-			string type = buf.substr(pp, bp - pp);
-			//TODO 接下来就是根据Vt细致地处理，然后扔到parse里面去
+			type = buf.substr(pp, bp - pp);
 			// 如果Vt是关键字，op，界符，限定词，则将原来的符号扔进去
-			// TODO 处理main
 			if(type == "关键词"  || type == "界符")
 			{
 				if(Vt == "main")
@@ -770,14 +770,10 @@ class syntax_parser
 			}
 			else  if(type == "操作符")
 			{
-				if(Vt == "=")
-				{
-					result = parse_Vt(Vt);
-				}
-				else
-				{
-					result = parse_Vt(type);
-				}
+				
+				result = parse_Vt(Vt);
+				
+
 			}
 			else  if(type == "常量" || type == "限定符")// 如果是常数 标识符 则把type扔进去
 			{
@@ -787,12 +783,13 @@ class syntax_parser
 			{
 				result = 1;
 			}
-			cout << line_idx << "  " << result << endl;
+			
 			if(result == 2)
 			{
 				break;
 			}
 			#ifdef _DEBUG_
+			cout << line_idx << "  " << result << endl;
 			for(auto & s:s_stack)
 			{
 				cout << s;
@@ -808,6 +805,10 @@ class syntax_parser
 		}
 		result = parse_Vt(end_s);
 		cout << result << endl;
+		if(result != 0)
+		{
+			cout << "ERROR:\n line:"<<line_idx << "  "<<Vt<<endl;
+		}
 		#ifdef _DEBUG_
 		for(auto & s:s_stack)
 		{

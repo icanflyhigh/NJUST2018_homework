@@ -118,7 +118,7 @@ void Z(const char * s)
 	out("Z1", "+", "Z2");// Z1->+Z2
 	out("Z1", "-", "Z2");// Z1->-Z2
 	outNum("Z1", "Z2", 1);
-	out("Z1", "0");
+	outNum("Z1", ""); // Z1 -> (0-9)
 	outNum("Z2", "Z2");
 	outNum("Z2", "");
 
