@@ -77,8 +77,7 @@ inline int atom_op_idx(const string & s){
 	}
 	return -1;
 }
-class type_base{
-};
+
 
 inline int property_idx(const string & s){
 	for(int i = 0; i <= property.size(); i++){
@@ -154,7 +153,6 @@ class syntax_parser
 		}
 	};
 
-
 	void _print_quadra_tuple_(const quadra_tuple  & q){
 		switch(q.func){
 			case enum_add:
@@ -182,14 +180,20 @@ class syntax_parser
 				break;
 		}
 
-
-
-
-				
 	}
-	void print_quadra_tuple_list(){
-		for(const auto & q: quadra_tuple_list){	_print_quadra_tuple_(q);}
-	}
+	struct node{
+		id_type type;
+		int val, op1, op2;
+		bool is_leaf;
+		vector<int> to;
+		operation come_op;
+		node(id_type to_type, int to_val=0):
+		type(to_type), val(to_val){}
+		node(id_type to_type, operation to_come_op, int to_op1=-1, int to_op2=-1, int to_val=0):
+		type(to_type), come_op(to_come_op), val(to_val), op1(to_op1), op2(to_op2){}
+	};
+
+
 // 参数区
 	ifstream f1;
 	ifstream f2;
@@ -208,13 +212,23 @@ class syntax_parser
 	// 处理token时会随着读取变化的变量
 	vector<quadra_tuple> quadra_tuple_list;
 	vector<Identifier> id_table; // 变量表
-	map<int, int> int_val; // 储存int型变量的值
-	map<int, double> double_map;// 储存double型变量的值
+	// map<int, int> int_val; // 储存int型变量的值
+	// map<int, double> double_map;// 储存double型变量的值
 	vector<int> s_stack; // 状态栈
 	vector<int> V_stack; // 符号栈
 	vector<int> id_stack;// 操作id分配reg的stack
 	int Vn_reg_cnt = 0; // 给杂项分配id_table的计数器
 
+	// 优化四元组用到的变量
+	vector<node> dag;
+	map<int, int> id2node;
+	int node_cnt;
+	vector<quadra_tuple> optimized_quadra_tuple_list;
+	int opt_temp_reg_cnt;
+
+	void print_quadra_tuple_list(const vector<quadra_tuple> & ql){
+		for(const auto & q: ql){_print_quadra_tuple_(q);}
+	}
 	void output()
 	{
 		puts("-----* output *-----");
@@ -318,6 +332,21 @@ class syntax_parser
 				cout<< endl;
 			}
 			cout << endl;
+		}
+
+		puts("DAG");
+		int i = 0;
+		for(auto &n : dag){
+			printf("[%d]", i);
+			cout << "type:"<<(n.type >= 0 && n.type <= 3? (id_type)n.type : -1)<<"  come_op:"<<n.come_op;
+			printf(" is_leaf: %d, op1: %d, op2: %d, val: %d\n", (int)n.is_leaf, i, n.op1, n.op2, n.val);
+			i++;
+		}
+		cout << endl;
+
+		puts("id2node");
+		for(auto i : id2node){
+			printf("[%d] -> %d\n", i.first, i.second);
 		}
 
 		cout << endl;
@@ -829,7 +858,7 @@ class syntax_parser
 	}
 
 	int _assign_(int idx1, int idx2){
-		quadra_tuple_list.push_back(quadra_tuple(enum_assign, idx2, idx1));
+		quadra_tuple_list.push_back(quadra_tuple(enum_assign, idx1, idx2));
 		return 0;
 	}
 
@@ -896,13 +925,13 @@ class syntax_parser
 		return -1;// -1表示末尾添加
 	}
 
-	int add_temp(){
+	int add_temp(id_type it=ident){
 		stringstream ss;
 		ss << Vn_reg_cnt++;
 		string temps;
 		ss >> temps;
 		temps = string("$") + temps;
-		add_id(temps, type_other);
+		add_id(temps, it);
 		return id_table.size() - 1;
 	}
 
@@ -918,10 +947,7 @@ class syntax_parser
 	
 	
 	
-	void optimize_quadra_tuple_list(){
-		vector<quadra_tuple>::iterator iter = quadra_tuple_list.begin();
-		map<string, string> ms;
-	}
+
 
 	// TODO需要处理将表达式转化为4元式
 	// id_stack留着在原来函数里面pop
@@ -1007,7 +1033,7 @@ class syntax_parser
 			return 1;
 		}
 		int back = s_stack.back();
-		if(go[back ].find(idx) != go[back ].end()) // 转移
+		if(go[back].find(idx) != go[back].end()) // 转移
 		{
 			int ret = -1;
 			if(type == "标识符"){
@@ -1026,7 +1052,7 @@ class syntax_parser
 			}
 			id_stack.push_back(ret);
 			V_stack.push_back(idx);
-			s_stack.push_back(go[back ][idx]);
+			s_stack.push_back(go[back][idx]);
 			return 3;
 		}
 		else if(reverse[back].find(idx) != reverse[back].end()) // 规约
@@ -1185,7 +1211,7 @@ class syntax_parser
 			printf("YES!\n");
 		}
 		puts("quadra_tuple_list:");
-		print_quadra_tuple_list();
+		print_quadra_tuple_list(quadra_tuple_list);
 		cout << endl;
 #ifdef _DEBUG_
 		for(auto & s:s_stack)
@@ -1209,7 +1235,241 @@ class syntax_parser
 		f2.close();
 	}
 
+	int _add_const_var_leaf_(int val){
+		node tn = node(const_var, val);
+		tn.is_leaf = true;
+		int idx = _chk_in_dag_(tn);
+		if(idx == -1){
+			idx = dag.size();
+			dag.push_back(tn);
+		}
+		return idx;
+	}
+
+	int _chk_in_dag_(node n){
+		if(n.type == const_var){
+			for (int i = 0; i < dag.size(); i++){
+				if(dag[i].type == const_var && dag[i].val == n.val){
+					return i;
+				}
+			}
+		}
+		// 如果是变量的话 直接忽略
+		return -1;
+	}	
+
+	int _add_ident_leaf(int idx){
+		int ret = -1;
+		if(id2node.find(idx) == id2node.end()){// 是之前没有出现过的变量
+			id2node[idx] = ret = dag.size();
+			node tn = node(ident, enum_assign, idx);
+			tn.is_leaf = true;
+			dag.push_back(tn);
+		}
+		else{
+			ret = id2node[idx];
+		}
+		return ret;
+	}
+
+	int _add_ident_node_(node n){
+		int idx = 0;
+		for(auto & tn : dag){
+			if(tn.come_op == n.come_op && tn.op1 == n.op1 && tn.op2 == n.op2){
+				break;
+			}
+			idx++;
+		}
+		if(idx == dag.size()){
+			n.is_leaf = false;
+			dag.push_back(n);
+			if(n.op1 != -1)dag[n.op1].to.push_back(idx); // 加入to，方便之后的拓扑排序
+			if(n.op2 != -1)dag[n.op2].to.push_back(idx);
+		}
+		return idx;
+	}
+
+	void _optim_assign_(const quadra_tuple & q){
+		int idx1 = id_table[q.op1].type == ident ? _add_ident_leaf(q.op1) : 
+										_add_const_var_leaf_(id_table[q.op1].val);
+		id2node[q.op2] = idx1;
+	}
+
+	void _optim_op_(const quadra_tuple & q){
+		int idx1 = id_table[q.op1].type == ident ? _add_ident_leaf(q.op1) : 
+										_add_const_var_leaf_(id_table[q.op1].val)
+		, idx2 = id_table[q.op1].type == ident ? _add_ident_leaf(q.op2) : 
+										_add_const_var_leaf_(id_table[q.op2].val);
+	if(dag[idx1].type == const_var && dag[idx2].type == const_var){ 
+			//如果op1和op2都是常量, dst一定是变量，所以直接拉到add的结果节点上
+			int val;
+			if(q.func == enum_add)val = dag[idx1].val + dag[idx2].val;
+			else if(q.func == enum_sub)val = dag[idx1].val - dag[idx2].val;
+			else if(q.func == enum_mul)val = dag[idx1].val * dag[idx2].val;
+			else val = dag[idx1].val / dag[idx2].val;
+			int dst = _add_const_var_leaf_(val);
+			id2node[q.dst] = dst;
+		}
+		else{
+			node tn = node(ident, q.func, idx1, idx2);
+			int idx2 = _add_ident_node_(tn);
+			id2node[q.dst] = idx2; // 将dst加入映射
+		}
+	}
+	
+	void _optim_print_(const quadra_tuple & q){
+		// 无需优化，直接加入即可
+		int idx1 = id_table[q.op1].type == ident ? _add_ident_leaf(q.op1) : 
+													_add_const_var_leaf_(id_table[q.op1].val);
+		node tn = node(ident, enum_print, idx1);
+		_add_ident_node_(tn);
+	}
+
+// 优化函数(main)
+	void optim(){
+		for (int i = 0; i < quadra_tuple_list.size(); i++){
+			switch(quadra_tuple_list[i].func){
+				case enum_assign:
+					_optim_assign_(quadra_tuple_list[i]);
+					break;
+				case enum_add:
+				case enum_sub:
+				case enum_mul:
+				case enum_div:
+					_optim_op_(quadra_tuple_list[i]);
+					break;
+				case enum_print:
+					_optim_print_(quadra_tuple_list[i]);
+					break;
+			}
+		}
+		gen_optimized_quadra_tuple_list();
+	}
+
+	int add_const_id(int val){
+		string name = num2str(val);
+		int ret = add_id(name, const_var);
+		return ret == -1 ? id_table.size() - 1 : ret;
+	}
+
+	inline string num2str(int num){
+		string temp;
+		stringstream ss;
+		ss << num;
+		ss >> temp;
+		return temp;
+	}
+
+	int get_node_id(int node_idx,  vector<vector<int>> & node2id){// 查询idx号node对应的id的值
+		int ret = -1;
+		if(node2id[node_idx].size() == 0){// 如果该节点还没有加入id_table, 则加入,而且这一定是const_var
+			if(dag[node_idx].type == const_var){
+				ret = add_const_id(dag[node_idx].val);
+				node2id[node_idx].push_back(ret);
+			}
+			else{// 叶子节点的标识符
+			//TODO 解决叶子结点标识符的问题，以及temp标识符的问题
+				ret = dag[node_idx].op1;
+			}
+			node2id[node_idx].push_back(ret);
+		}
+		else {
+			// 如果是常量，则输出常量
+			// 这个常量还是放在最后一个的
+			// 是变量型节点, 将最后一个取出来当做是该节点的
+			//合并这两种情况得
+			ret = node2id[node_idx].back();
+		}
+		return ret;
+	}
+
+	// 将单个节点转化为4元组
+	void node2quadra_tuple(int idx,  vector<vector<int>> & node2id){
+		const node &tn = dag[idx];
+		if(node2id[idx].size() == 0 && dag[idx].type == const_var){ // 该节点没有标识符，是常量节点，则不管
+		}
+		else if(tn.type == const_var){ // 如果是常量且有标识符的节点，则可以认为是赋值
+			int idx2 = add_const_id(tn.val);
+			for(auto i : node2id[idx]){
+				// 通过赋值，将标识符赋值
+				optimized_quadra_tuple_list.push_back(quadra_tuple(enum_assign, i, idx2));
+			}
+			node2id[idx].push_back(idx2);
+		}
+		// 如果是非叶子结点的标识符
+		// else if(tn.is_leaf == false && tn.type == ident){
+		else if(tn.type == ident){
+			// 这里不会为两个常量，因为常量在之前已近合并了
+			switch(tn.come_op){
+				case enum_add:
+				case enum_sub:
+				case enum_mul:
+				case enum_div:{
+					int node_idx1 = tn.op1, node_idx2 = tn.op2;
+					int op1 = get_node_id(node_idx1, node2id), op2 = get_node_id(node_idx2, node2id);
+					int dst = 0;
+					if(node2id[idx].size() == 0){
+						node2id[idx].push_back(add_temp()) ;
+					}
+					optimized_quadra_tuple_list.push_back(quadra_tuple(tn.come_op, op1, op2, node2id[idx][dst++]));// 就第一个执行运算，其他均为赋值操作
+					for (; dst < node2id[idx].size(); dst++){
+						optimized_quadra_tuple_list.push_back(quadra_tuple(enum_assign, node2id[idx][0], node2id[idx][dst++]));
+					}
+					break;
+				}
+				default: // 没有操作符的就是外来的标识符
+				case enum_assign:{
+					// 这里认为不可能是$temp，因为$temp没有被赋值过，不能作为建立node的基础
+					int op1 = tn.op1;
+					int op2 = 0;
+					for (; op2 < node2id[idx].size(); op2++){
+						if(node2id[idx][op2] !=  op1)
+						optimized_quadra_tuple_list.push_back(quadra_tuple(enum_assign, op1, node2id[idx][op2++]));
+					}					
+					break;
+				}
+				case enum_print:{
+					int op1 = get_node_id(tn.op1, node2id);
+					optimized_quadra_tuple_list.push_back(quadra_tuple(enum_print, op1));
+					break;
+				}
+			}
+		}
+	}
+
+	// TODO优化之后使用拓扑排序直接输出优化后的TAC
+	void gen_optimized_quadra_tuple_list(){
+		queue<int> que;
+		bool * vis = new bool[dag.size()];
+		vector<vector<int>>  node2id(dag.size());
+		Vn_reg_cnt = 0; // 借用add_temp函数
+		for(auto i : id2node){
+			if(id_table[i.first].name[0] != '$')
+				node2id[i.second].push_back(i.first);
+		}
+		for(int i = 0; i < dag.size(); i++){
+			if(dag[i].is_leaf)que.push(i);
+			vis[i] = false;
+		}
+		while(que.empty() == false){
+			int idx = que.front();que.pop();
+			if(vis[idx])continue;
+			vis[idx] = true;
+			for(auto i : dag[idx].to){
+				if(vis[i] == false){
+					que.push(i);
+				}
+			}
+			node2quadra_tuple(idx, node2id);
+		}
+		puts("optimzed_quadra_tuple_list");
+		print_quadra_tuple_list(optimized_quadra_tuple_list);
+		delete []vis;
+	}
+
+
 };
+
 
 
 
@@ -1230,14 +1490,14 @@ int main()
 	// t1 = clock();
 	sp.read_syntax();
 	// t2 = clock();
-	// cout << "gogogo" << endl;
 	sp.generate_clan();
 	// t3 = clock();
 	// sp.output();
 	
 	sp.parse_code();
+	sp.optim();
 	// t4 = clock();
-	// sp.output();
+	sp.output();
 	// sp.end();
 #ifdef m_
 	fclose(stdin);
