@@ -42,7 +42,9 @@ const map<string, node_type>  node_type_map = {
 	{{"while"}, node_while},
 	{{"func"}, node_func},
 	{{"greater"}, node_greater},
-	{{"declare"}, node_declare,}
+	{{"declare"}, node_declare,},
+	{{"call"}, node_call},
+	{{"return"}, node_return},
 };
 
 
@@ -250,7 +252,7 @@ public:
 	int str2Num(const string  s);
 
 	// TODO给出错误的原因
-	void parse_code();// 读取TASK1的输出
+	int parse_code();// 读取TASK1的输出
 
 	int AST2TAC();// 将抽象语法树转化为四元式
 

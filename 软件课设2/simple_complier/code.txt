@@ -1,21 +1,36 @@
 #include<iostream>
 using namespace std;
 
+int Fibonacci(int x, int y)
+{
+	if(x)
+	{
+		return x + Fibonacci(x ,6);
+	}
+	return 0;
+}
+
+
 int main()
 {
 	int a = 5, b =3;
-	int f = a;
-	while(a + b)
+	int f = Fibonacci(5 ,6) + Fibonacci(5,6);
+	if(a + b)
 	{
 		a = a + 5;
 		a = a * (b + 1 * 5);
+		while(a + b > 11)
+		{
+			b = 20;
+			int c =a +b;
+		}
 	}
 	while(a + b > 11)
 	{
 		b = 20;
 		int c =a +b;
 	}
-	int e= 5;
+	double x = 20.0;
 	double c = 20.0;
 	int d = a + b;
 	return 0;

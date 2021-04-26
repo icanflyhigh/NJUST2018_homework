@@ -1,11 +1,35 @@
 #pragma once
 #ifndef TYPE_H
 #define TYPE_H
-
+#include <iostream>
+#include <stdlib.h>
+#include <fstream>
+#include <istream>
+#include <sstream>
+#include <cstdio>
+#include <cstdlib>
+#include <string.h>
+#include <queue>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <cmath>
+#include <stack>
+#include <list>
+#include <set>
+#include <time.h>
+#include <string>
+#include <iterator>
+#include <sstream>
+#include <cassert>
 #include <map>
 #include <utility>
 #include <cassert>
 // TODO将所有的include整理到这里
+
+#define _DEBUG_
+
+
 constexpr auto MAX_SYMBOL_NUM = 10000;        // 最大symbol数
 constexpr auto MAX_SYMBOL_LENGTH = 1000;      // 最大symbol长度
 
@@ -46,7 +70,7 @@ struct symbol {
 	objectType oType;
 	valueType vType;
 	symData data;
-	bool is_declare = false;
+	bool is_declare = false, not_in=-1;
 	int domain, hold_domain; // 所在的参数表, 自身拥有的参数表
 	int level; // 所在参数表的层数
 	int parameter;
@@ -82,6 +106,8 @@ enum node_type {
 	node_eq,
 	node_func,
 	node_error,
+	node_call,
+	node_return,
 };
 
 
@@ -99,7 +125,9 @@ enum func
 	GOTO,
 	PRINT,
 	ASSIGN,
-	TAG
+	TAG,
+	CALL,
+	RETURN,
 };
 
 

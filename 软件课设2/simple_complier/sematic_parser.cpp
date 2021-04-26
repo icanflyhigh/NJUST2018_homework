@@ -1,30 +1,7 @@
 #include "sematic_parser.h"
 #include "Type.h"
 // author: M@
- #define _DEBUG_
-#include <iostream>
-#include <stdlib.h>
-#include <fstream>
-#include <istream>
-#include <sstream>
-#include <cstdio>
-#include <cstdlib>
-#include <string.h>
-#include <queue>
-#include <vector>
-#include <map>
-#include <algorithm>
-#include <cmath>
-#include <stack>
-#include <list>
-#include <set>
-#include <time.h>
-#include <string>
-#include <iterator>
-#include <sstream>
-#include <cassert>
-
-using namespace std;
+ //#define _DEBUG_
 
 /*
 语义分析器
@@ -727,10 +704,58 @@ AST_node sematic_parser::deal_expression(int id_num, int form_idx)
 	int opp = tf.ops.size(), varp = tf.var.size();
 	if(opp > 0)tast.type = tf.ops[0];
 	else tast.type = node_nop;
+
 	if (tast.type == node_func)
 	{
-		//printf("add_func:%s\n", rf[tf.var[0]].name.c_str());
-		tast.name = rf[tf.var[0]].name;
+
+		tast.name = rf[tf.var[1]].name;
+		tast.dType = ASTTree.tree[rf[tf.var[0]].op[0]].dType;
+		tast.syb = rf[tf.var[1]].syb;
+		tast.syb->vType = tast.dType;
+		tast.syb->hold_domain = symbolTable.prev_table;
+#ifdef _DEBUG_
+		//printf("%s type: %d \n", tast.name.c_str(), tast.dType);
+#endif // _DEBUG_
+		int fa = symbolTable.cur_table;
+		// 将形参表中的标识符加入子领域
+		// 这些东西写得特别死
+		AST_node& tn = rf[tf.var[2]];
+		if (tn.op.size())
+		{
+			tn = ASTTree.tree[tn.op[0]];
+			while (1)
+			{
+				if (tn.op.size() == 3)
+				{
+					string& name = ASTTree.tree[tn.op[2]].name;
+					symbol & tsb = (*(symbolTable.local_tables[fa]))[name];
+					(*(symbolTable.local_tables[tast.syb->hold_domain]))[name] = tsb;
+					tsb.not_in = symbolTable.cur_table;
+					tsb.is_declare = true;
+					tsb.vType = ASTTree.tree[ASTTree.tree[tn.op[1]].op[0]].dType;
+					tn = ASTTree.tree[tn.op[0]];
+				}
+				else if (tn.op.size() == 2)
+				{
+					
+					string& name = ASTTree.tree[tn.op[1]].name;
+					symbol & tsb = (*(symbolTable.local_tables[fa]))[name];
+					(*(symbolTable.local_tables[tast.syb->hold_domain]))[name] = tsb;
+					tsb.not_in = symbolTable.cur_table;
+					tsb.is_declare = true;
+					tsb.vType = ASTTree.tree[ASTTree.tree[tn.op[0]].op[0]].dType; 
+#ifdef _DEBUG_
+					//printf("type trans : %d\n", tsb.vType);
+#endif // _DEBUG_
+					break;
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
+
 	}
 #ifdef _DEBUG_
 	//for (auto & m : symbolTable.local_tables)
@@ -763,6 +788,7 @@ AST_node sematic_parser::deal_expression(int id_num, int form_idx)
 	{
 		tast.op.push_back(ASTTree.add_node(rf[idx]));
 	}
+
 	return tast;
 }
 
@@ -797,8 +823,9 @@ symbol sematic_parser::read_VARIABLE(const string & s)
 // 分析序列 返回错误类型，或者接受 -1程序错误 0接受 1不识别的Vt 2拒绝 3处理中 4标识符类型错误
 int sematic_parser::parse_Vt(string  s, string Vt, string type)
 {
-	int idx = V_idx(s, false);
 
+
+	int idx = V_idx(s, false);
 	if (idx == V_list.size()) // 未识别Vt
 	{
 		return 1;
@@ -815,6 +842,7 @@ int sematic_parser::parse_Vt(string  s, string Vt, string type)
 	// 程序可读性极差
 	if (go[back].find(idx) != go[back].end()) // 转移
 	{
+		
 		// 加入symbol_table
 		AST_node ta;
 		if (type == "常量")
@@ -837,6 +865,10 @@ int sematic_parser::parse_Vt(string  s, string Vt, string type)
 		{
 			ta.dType = DOUBLE_TYPE;
 		}
+		else if (Vt == "void")
+		{
+			ta.dType = VOID_TYPE;
+		}
 		a_stack.push_back(ta);
 		V_stack.push_back(idx);
 		s_stack.push_back(go[back][idx]);
@@ -844,6 +876,8 @@ int sematic_parser::parse_Vt(string  s, string Vt, string type)
 	}
 	else if (reverse[back].find(idx) != reverse[back].end()) // 规约
 	{
+
+
 		int form_idx = reverse[back][idx];
 		int cnt = form_list[form_idx].right.size();
 		// 特判空产生式
@@ -851,7 +885,7 @@ int sematic_parser::parse_Vt(string  s, string Vt, string type)
 		{
 			cnt = 0;
 		}
-		AST_node tast = deal_expression(cnt, form_idx);
+		AST_node tast = deal_expression(cnt, form_idx); 
 		while (cnt--)
 		{
 			a_stack.pop_back();
@@ -859,7 +893,7 @@ int sematic_parser::parse_Vt(string  s, string Vt, string type)
 			V_stack.pop_back();
 		}
 		a_stack.push_back(tast);
-		V_stack.push_back(form_list[form_idx].left);
+		V_stack.push_back(form_list[form_idx].left); 
 		if (V_stack.size() == 2 && V_stack.back() == 1)
 		{
 			return 0;
@@ -867,19 +901,18 @@ int sematic_parser::parse_Vt(string  s, string Vt, string type)
 		int tl = s_stack.size();
 		s_stack.push_back(go[s_stack[tl - 1]][form_list[form_idx].left]);
 #ifdef _DEBUG_
-		for (auto & s : s_stack)
-		{
-			cout << s;
-		}
-		puts("");
-		for (auto & v : V_stack)
-		{
-			cout << V_list[v];
-		}
-		puts("\n");
+		//for (auto & s : s_stack)
+		//{
+		//	cout << s;
+		//}
+		//puts("");
+		//for (auto & v : V_stack)
+		//{
+		//	cout << V_list[v];
+		//}
+		//puts("\n");
 #endif
 		int ret = parse_Vt(s, Vt, type);
-
 		// 规约不会消耗下一个符号
 		return ret;
 	}
@@ -892,7 +925,7 @@ int sematic_parser::parse_Vt(string  s, string Vt, string type)
 
 // 读取TASK1的输出
 // TODO给出错误的原因
-void sematic_parser::parse_code()
+int sematic_parser::parse_code()
 {
 	string buf;
 	// 开始处理，初始化，感觉有点类似openGL
@@ -950,6 +983,7 @@ void sematic_parser::parse_code()
 					//printf("} %lld, %lld\n", symbolTable.cur_table, symbolTable.fa[symbolTable.cur_table]);
 #endif // _DEBUG_
 
+					symbolTable.prev_table = symbolTable.cur_table;
 					symbolTable.cur_table = symbolTable.fa[symbolTable.cur_table];
 				}
 			}
@@ -982,17 +1016,17 @@ void sematic_parser::parse_code()
 			break;
 		}
 #ifdef _DEBUG_
-		cout << line_idx << "  " << result << endl;
-		for (auto & s : s_stack)
-		{
-			cout << s;
-		}
-		puts("");
-		for (auto & v : V_stack)
-		{
-			cout << V_list[v];
-		}
-		puts("\n");
+		//cout << line_idx << "  " << result << endl;
+		//for (auto & s : s_stack)
+		//{
+		//	cout << s;
+		//}
+		//puts("");
+		//for (auto & v : V_stack)
+		//{
+		//	cout << V_list[v];
+		//}
+		//puts("\n");
 #endif
 
 	}
@@ -1024,19 +1058,21 @@ void sematic_parser::parse_code()
 	}
 
 	cout << endl;
+	
 #ifdef _DEBUG_
-	for (auto & s : s_stack)
-	{
-		cout << s;
-	}
-	puts("");
-	for (auto & v : V_stack)
-	{
-		cout << V_list[v];
-	}
-	puts("\n");
+	//for (auto & s : s_stack)
+	//{
+	//	cout << s;
+	//}
+	//puts("");
+	//for (auto & v : V_stack)
+	//{
+	//	cout << V_list[v];
+	//}
+	//puts("\n");
 #endif
 	// cout << result << endl;
+	return result;
 }
 
 // 产生TAC的过程极度暴力
@@ -1055,7 +1091,7 @@ int sematic_parser::dfs_AST(int idx)
 	{
 		valueType vt = ASTTree.tree[ASTTree.tree[tn.op[0]].op[0]].dType;
 #ifdef _DEBUG_
-		printf("declare_type: %d\n", vt);
+		//printf("declare_type: %d\n", vt);
 #endif // _DEBUG_
 		ret_flag = AST_node::get_declared(tn, vt, ASTTree.tree);
 	}
@@ -1081,19 +1117,31 @@ int sematic_parser::dfs_AST(int idx)
 // 将抽象语法树转化为四元式
 int sematic_parser::AST2TAC()
 {
-	int mp = 0, cnt = 0;
+	int mp = 0, cnt = 0, ret = 0;
 	// 找到main函数入口
 	for(;mp < ASTTree.tree.size(); mp++)
 	{ 
 
-		if (ASTTree.tree[mp].name == "main" && ASTTree.tree[mp].type == node_func)break;
-		if(ASTTree.tree[mp].name.size())
-		printf("%d %s %d\n",mp,  ASTTree.tree[mp].name.c_str(), ASTTree.tree[mp].type);
+#ifdef _DEBUG_
+		//if (ASTTree.tree[mp].name.size())
+		//	printf("%d %s %d\n", mp, ASTTree.tree[mp].name.c_str(), ASTTree.tree[mp].type);
+#endif // _DEBUG_
+		//if (ASTTree.tree[mp].name == "main" && ASTTree.tree[mp].type == node_func)break;
+		if (ASTTree.tree[mp].type == node_func)
+		{
+			if (ASTTree.tree[mp].name == "main")
+			{
+				cnt++;
+			}
+			ret = dfs_AST(mp);
+			ASTTree.tree[mp].show_code();
+		}
+
 	}
 
 #ifdef _DEBUG_
-	printf("tree size %d\n", ASTTree.tree.size());
-	printf("ASTTree.tree[%d].name %s\n", mp, ASTTree.tree[mp].name.c_str());
+	//printf("tree size %d\n", ASTTree.tree.size());
+	//printf("ASTTree.tree[%d].name %s\n", mp, ASTTree.tree[mp].name.c_str());
 
 	//for (auto & m : symbolTable.local_tables)
 	//{
@@ -1113,27 +1161,25 @@ int sematic_parser::AST2TAC()
 	//}
 	//assert(mp != ASTTree.tree.size());
 #endif // _DEBUG_
-	int ret;
-	if (mp != ASTTree.tree.size())
-	{
-		ret = dfs_AST(mp);
-		ASTTree.tree[mp].show_code();
-	}
-	else
+
+	//if (mp == ASTTree.tree.size())
+	//{
+	//	ret = dfs_AST(mp);
+	//	ASTTree.tree[mp].show_code();
+	//}
+	if(!cnt)
 	{
 		puts("缺少main函数作为入口");
 		return -1;
 	}
+	else if (cnt > 1)
+	{
+		puts("存在多个main函数作为入口");
+	}
 #ifdef _DEBUG_
 	puts("AST2TAC end");
 #endif // _DEBUG_
-
-
-
 	return ret;
-
-
-
 }
 
 

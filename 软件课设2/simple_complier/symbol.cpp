@@ -1,8 +1,4 @@
 #include "symbol.h"
-#include <cstdio>
-#include <iostream>
-
-#define _DEBUG_
 using namespace std;
 
 // TODO:ÐÞ¸´ËùÓÐµÄsymbol*
@@ -27,8 +23,12 @@ symbol* symtab::add_symbol(string & str, symbol &sb)
 	{
 		symbol_table & st = *local_tables[tidx];
 		auto iter = st.find(str);
-		if (iter != st.end())
+		if (iter != st.end() && iter->second.not_in != tidx)
 		{
+#ifdef _DEBUG_
+			//printf("find %S\n", str);
+#endif // _DEBUG_
+
 			return &((*iter).second);
 		}
 		cnt++;
@@ -58,11 +58,10 @@ symbol* symtab::add_symbol(string & str, symbol &sb)
 
 void symtab::add_table(int fa_table)
 {
-
-
 	int pst = local_tables.size();
 	local_tables.push_back(new symbol_table());
 	fa[pst] = fa_table;
+	prev_table = cur_table;
 	cur_table = pst;
 
 

@@ -21,6 +21,8 @@ map <func, string> func2str
 	{PRINT, "PRINT"},
 	{ASSIGN, "ASSIGN"},
 	{TAG, "TAG"},
+	{CALL, "CALLL"},
+	{RETURN, "RETURN"},
 };
 void TAC::show()
 {

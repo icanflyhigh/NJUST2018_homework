@@ -1,10 +1,9 @@
 ﻿// author: M@
-#include <iostream>
 #include "lex_parser.h"
 #include "lex_generater.h"
 #include "syntax_parser.h"
 #include "sematic_parser.h"
-
+#include "Type.h"
 
 using namespace std;
 
@@ -30,7 +29,12 @@ void syntax_parse(string file_path, string token_path){
 
 void sematic_parse(string file_path, string token_path) {
 	sematic_parser sp(file_path, token_path);
-	sp.test();
+	sp.read_syntax();
+	sp.generate_clan();
+	int ret = sp.parse_code();
+	//sp.output();
+	if(!ret)
+	sp.AST2TAC();
 	//sp.read_syntax();
 	//sp.generate_clan();
 	// sp.output();

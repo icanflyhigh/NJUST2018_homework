@@ -1,6 +1,4 @@
 #pragma once
-#include <vector>
-#include <string>
 #include "TAC.h"
 #include "Type.h"
 using namespace std;
@@ -26,6 +24,8 @@ static int temp_node_cnt;
 	int __declare__(vector<AST_node> & T);
 	int __if__(vector<AST_node> & T);
 	int __while__(vector<AST_node> & T);
+	int __return__(vector<AST_node> & T);
+	int __call__(vector<AST_node> & T);
 	void call(vector<AST_node>&);
 	bool type_check(vector<AST_node>&);
 

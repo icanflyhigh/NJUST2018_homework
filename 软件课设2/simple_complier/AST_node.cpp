@@ -1,7 +1,6 @@
 #include "AST_node.h"
 #include "Type.h"
-#include <sstream>
-#define _DEBUG_
+
 
 
 int AST_node::temp_node_cnt = 0;
@@ -24,7 +23,7 @@ int AST_node::get_declared(AST_node& tn, valueType vt, vector<AST_node> & T, boo
 	if (tn.syb && tn.syb->oType == VARIABLE && isleft)
 	{
 #ifdef _DEBUG_
-		printf("declare %s type %d\n", tn.name.c_str(), vt);
+		//printf("declare %s type %d\n", tn.name.c_str(), vt);
 #endif // _DEBUG_
 		if (tn.syb->is_declare) 
 		{ 
@@ -84,11 +83,10 @@ int AST_node::__function__(vector<AST_node> & T)
 	c.type = TAG;
 	c.tag = "tag: " + name;
 	code.push_back(c);
-	for (auto idx : op)
-	{
-		code.insert(code.end(),
-			T[idx].code.begin(), T[idx].code.end());
-	}
+	code.insert(code.end(),
+			T[op[3]].code.begin(), T[op[3]].code.end());
+	dType = T[T[op[0]].op[0]].dType;
+	syb->vType = dType;
 	return 0;
 }
 
@@ -153,6 +151,55 @@ int AST_node::__while__(vector<AST_node> & T)
 	c.tag = false_tag;
 	c.op.clear();
 	code.push_back(c);
+	return 0;
+}
+
+int AST_node::__return__(vector<AST_node>& T)
+{
+	name = "return";
+	for (auto idx : op)
+	{
+		code.insert(code.end(),
+			T[idx].code.begin(), T[idx].code.end());
+	}
+	TAC c;
+	c.type = RETURN;
+	c.op.push_back(T[op[0]].name);
+	code.push_back(c);
+	return 0;
+}
+
+int AST_node::__call__(vector<AST_node>& T)
+{
+	name = T[op[0]].name + to_string(temp_node_cnt++);
+	for (auto idx : op)
+	{
+		code.insert(code.end(),
+			T[idx].code.begin(), T[idx].code.end());
+	}
+	AST_node & tn = T[op[1]];
+	TAC c;
+	c.type = CALL;
+	c.op.push_back(name);
+	while (1)
+	{
+		if (tn.op.size() == 2)
+		{
+			c.op.push_back(T[tn.op[1]].name);
+			tn = T[tn.op[0]];
+		}
+		else if(tn.op.size() == 1)
+		{
+			c.op.push_back(T[tn.op[0]].name);
+			break;
+		}
+		else
+		{
+			break;
+		}
+	}
+	code.push_back(c);
+	
 	return 0;
 }
 
@@ -249,6 +296,11 @@ void AST_node::call(vector<AST_node> & T)
 	//printf("%d\n", type);
 #endif // _DEBUG_
 
+	if (op.size())
+		dType = !T[op[0]].syb ? T[op[0]].dType :
+		T[op[0]].syb->vType;
+	else if (syb) dType = syb->vType;
+
 	switch (type)
 	{
 	case node_nop:
@@ -279,6 +331,11 @@ void AST_node::call(vector<AST_node> & T)
 	case node_error:
 		puts("ERROR NODE");
 		break;
+	case node_return:
+		__return__(T);
+		break;
+	case node_call:
+		__call__(T);
 	default:
 		break;
 	}
@@ -286,10 +343,6 @@ void AST_node::call(vector<AST_node> & T)
 //	puts("call end");
 //	printf("%d\n", syb->vType);
 //#endif // _DEBUG_
-	if(op.size())
-	dType = !T[op[0]].syb ? T[op[0]].dType :
-		T[op[0]].syb->vType;
-	else if (syb) dType = syb->vType;
 
 
 }
