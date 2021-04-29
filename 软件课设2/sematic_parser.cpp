@@ -1,1525 +1,1297 @@
+#include "sematic_parser.h"
+#include "Type.h"
 // author: M@
-# define m_
-#define _CRT_SECURE_NO_WARNINGS
-// #define _DEBUG_
-#pragma comment(linker, "/STACK:102400000,102400000") 
-#include<iostream>
-#include<stdlib.h>
-#include<fstream>
-#include<istream>
-#include<sstream>
-#include<cstdio>
-#include<cstdlib>
-#include<string.h>
-#include<queue>
-#include<vector>
-#include<map>
-#include<algorithm>
-#include<cmath>
-#include<stack>
-#include<list>
-#include<set>
-#include<time.h>
-#include<string>
-#include<assert.h>
-#include<time.h>
-#define FOR(i,a,b) for(int i=a;i<=b;i++)
-#define Swap(a,b) (a=a^b,b=b^a,a=a^b)
-#define clr(a)   memset((a),0,sizeof (a))
-#define li idx<<1
-#define ri idx<<1|1
-
-using namespace std;
-typedef unsigned int ui;
-typedef long long LL;
-typedef pair<int,int> pii;
-const int INF=0x3f3f3f3f;
-const LL LINF=1e18;
-const double DINF=1e9;
-const double EPS=1e-9;
-int dir[4][2]{{1,0},{0,1},{-1,0},{0,-1}};
-const int maxn=1e2+5;
+ //#define _DEBUG_
 
 /*
-è¯­æ³•åˆ†æå™¨
-
+ÓïÒå·ÖÎöÆ÷
 */
-//						0		1			2		3		4		5
-vector<string> token_names = {"å…³é”®è¯", "æ“ä½œç¬¦", "é™å®šç¬¦", "ç•Œç¬¦"};
-const set<string> keyword = {"break","case","char","continue","do","default","double","else","float","for","if",
-"int","include","long","main","return","switch","typedef","void","unsigned","while"};
-const set<string> op = {"+","-","*","/","!","^","=","%","&","&&","|","||","<","<=",">",">=","==","!=","++","--"};
-const set<string> delimiters ={";","(",")","{","}",",","[","]","#", "\"", "\'"};
-const set<string> qualifier = {"const", "static"};
-const vector<string> atom_op = {"print", "+", "-", "*", "/", ":="};
-const vector<string> property = {"val", "type"};
-vector<string> splitEx(const string &src, string separate_character);
-
-enum id_type
+int line=0;
+void sematic_parser::test()
 {
-	const_var, ident, type_other
-};
-
-enum operation
-{
-	// ä¸»ä¹‰æ’åˆ—é¡ºåºä¸atom_opçš„é¡ºåºç›¸åŒï¼Œä¸ºäº†æ›´å¥½çš„æ˜ å°„
-	enum_print, enum_add, enum_sub, enum_mul, enum_div, enum_assign
-};
-
-
-
-// è¿”å›såœ¨atom_opä¸­çš„æ ‡å·
-inline int atom_op_idx(const string & s){
-	for(int i = 0; i <= atom_op.size(); i++){
-		if(atom_op[i] == s){
-			return i;
-		}
-	}
-	return -1;
+	read_syntax();
+	generate_clan();
+	parse_code();
+	//output();
+	AST2TAC();
 }
 
 
-inline int property_idx(const string & s){
-	for(int i = 0; i <= property.size(); i++){
-		if(property[i] == s)return i;
-	}
-	return -1;
+sematic_parser::sematic_parser(string syntax_path, string code_path)
+{
+	f1.open(syntax_path, std::ios::in);
+	f2.open(code_path, std::ios::in);
 }
 
-class quadra_tuple{
-	public:
-		int  op1, op2, dst;
-		operation func;
-		quadra_tuple(operation to_func, int to_op1=0, int to_op2=0, int to_dst=0):
-		op1(to_op1), op2(to_op2), dst(to_dst), func(to_func){}
+//
+//void sematic_parser::_print_quadra_tuple_(const quadra_tuple  & q) {
+//	switch (q.func) {
+//	case enum_add:
+//		printf("%s %s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(),
+//			id_table[q.op2].name.c_str(), id_table[q.dst].name.c_str());
+//		break;
+//	case enum_sub:
+//		printf("%s %s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(),
+//			id_table[q.op2].name.c_str(), id_table[q.dst].name.c_str());
+//		break;
+//	case enum_mul:
+//		printf("%s %s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(),
+//			id_table[q.op2].name.c_str(), id_table[q.dst].name.c_str());
+//		break;
+//	case enum_div:
+//		printf("%s %s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(),
+//			id_table[q.op2].name.c_str(), id_table[q.dst].name.c_str());
+//		break;
+//	case enum_assign:
+//		printf("%s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(),
+//			id_table[q.op2].name.c_str());
+//		break;
+//	case enum_print:
+//		printf("%s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str());
+//		break;
+//	}
+//
+//}
+//
+//struct node {
+//	id_type type;
+//	int val, op1, op2;
+//	bool is_leaf;
+//	vector<int> to;
+//	operation come_op;
+//	node(id_type to_type, int to_val = 0) :
+//		type(to_type), val(to_val) {}
+//	node(id_type to_type, operation to_come_op, int to_op1 = -1, int to_op2 = -1, int to_val = 0) :
+//		type(to_type), come_op(to_come_op), val(to_val), op1(to_op1), op2(to_op2) {}
+//};
 
-};
-
-class syntax_parser
+void sematic_parser::output()
 {
-	public:
-	syntax_parser(string syntax_path, string code_path)
+	puts("-----* output *-----");
+
+	for (int i = 0; i < form_list.size(); i++)
 	{
-		f1.open(syntax_path, std::ios::in);
-		f2.open(code_path, std::ios::in);
+		cout << V_list[form_list[i].left] << " ";
+		for (auto j : form_list[i].right)
+		{
+			cout << V_list[j] << " ";
+		}
+		cout << endl;
 	}
 
-	struct operand{
-		int v, property; //væŒ‡å‘äº§ç”Ÿå¼çš„ç¬¬å‡ ä¸ªV -1 è¡¨ç¤ºå·¦å¼
-		operand(int a=0, int b=0): v(a), property(b){
+	puts("Form_List");
+	for (int i = 0; i < form_list.size(); i++) {
+		form temp = form_list[i];
+		printf("%s->", V_list[temp.left].c_str());
+		for (int j = 0; j < temp.right.size(); j++) {
+			printf("%s", V_list[temp.right[j]].c_str());
 		}
-	};
-
-	struct form
-	{
-		int left;// äº§ç”Ÿå¼å·¦éƒ¨
-		vector<int> right;// äº§ç”Ÿå¼å³éƒ¨
-		vector<int> op;// é€šè¿‡æ¨¡æ‹Ÿæ ˆæ“ä½œæ¥å®ç°ç¬¦å·çš„å¤„ç†
-		vector<operand> var;// é€šè¿‡æ¨¡æ‹Ÿæ ˆæ“ä½œæ¥å®ç°ç¬¦å·çš„å¤„ç†
-		form(int a, vector<int> b):left(a), right(b){}
-	};
-
-	// åˆ†ææ ˆä¸­çš„å…ƒç´ 
-	struct Identifier{
-		string name;
-		int val, addr, size, level;
-		id_type type;
-		Identifier(string a, int to_val=0, id_type to_type=(id_type)0, int to_addr=0, int to_size=0, int to_level=0):
-		name(a), val(to_val), addr(to_addr), size(to_size), level(to_level), type(to_type){}
-	};
-
-	struct item
-	{
-		int f; // äº§ç”Ÿå¼
-		int p = 0;// äº§ç”Ÿå¼çš„çŠ¶æ€
-		int fs; // å‰å‘æœç´¢ç¬¦
-		item(int form_idx, int pos, int fs_idx):f(form_idx), p(pos), fs(fs_idx)
-		{}
-		bool operator==(const item & a)const
-		{
-			return f == a.f && p == a.p && fs == a.fs;
+		printf("  $  ");
+		for (auto j : temp.ops) {
+			printf("%d  ", j);
 		}
-		bool operator<(const item & a)const
-		{
-			if(f != a.f)
-			{
-				return f < a.f;
+		for (auto j : temp.var) {
+			int jv = j;
+			if (jv == -1) {// ÊÇ×óÊ½
+				printf("(L)%s ", V_list[temp.left].c_str());
 			}
-			else if(p != a.p)
-			{
-				return p < a.p;
+			else {// ÊÇÓÒÊ½
+					printf("(R)%s ", V_list[temp.right[j]].c_str());
 			}
-			return fs < a.fs;
-		}
-	};
 
-	void _print_quadra_tuple_(const quadra_tuple  & q){
-		switch(q.func){
-			case enum_add:
-				printf("%s %s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(), 
-										id_table[q.op2].name.c_str(), id_table[q.dst].name.c_str());
-				break;
-			case enum_sub:
-				printf("%s %s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(), 
-										id_table[q.op2].name.c_str(), id_table[q.dst].name.c_str());
-				break;
-			case enum_mul:
-				printf("%s %s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(), 
-										id_table[q.op2].name.c_str(), id_table[q.dst].name.c_str());
-				break;
-			case enum_div:
-				printf("%s %s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(), 
-										id_table[q.op2].name.c_str(), id_table[q.dst].name.c_str());
-				break;
-			case enum_assign:
-				printf("%s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(), 
-										id_table[q.op2].name.c_str());
-				break;
-			case enum_print:
-				printf("%s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str());
-				break;
 		}
-
+		cout << endl;
 	}
-	struct node{
-		id_type type;
-		int val, op1, op2;
-		bool is_leaf;
-		vector<int> to;
-		operation come_op;
-		node(id_type to_type, int to_val=0):
-		type(to_type), val(to_val){}
-		node(id_type to_type, operation to_come_op, int to_op1=-1, int to_op2=-1, int to_val=0):
-		type(to_type), come_op(to_come_op), val(to_val), op1(to_op1), op2(to_op2){}
-	};
 
-
-// å‚æ•°åŒº
-	ifstream f1;
-	ifstream f2;
-	vector<string> V_list;// è®°å½•Vçš„åˆ—è¡¨
-	vector<bool> is_VT;// æ˜¯å¦ä¸ºç»ˆç»“ç¬¦
-	set<int> to_epsilon;// ä¼šäº§ç”Ÿepsilonçš„é›†åˆ
-	vector<form> form_list; // äº§ç”Ÿå¼åˆ—è¡¨
-	map<int, vector<int>> form_map;// æ¯ä¸€ä¸ªå·¦éƒ¨ä¸ºidxçš„form
-	string start_s = "<Start>";// å¼€å§‹ç¬¦å·
-	string end_s = "endC"; // ç»“æŸç¬¦å·
-	vector<vector<item>> item_clan; // é¡¹ç›®é›†æ—
-	vector<map<int, int>> go; // è½¬ç§» ç¬¬ä¸€ä¸ªintè¡¨ç¤ºç¬¦å·ï¼Œç¬¬äºŒä¸ªè¡¨ç¤ºè½¬ç§»åˆ°çš„çŠ¶æ€
-	vector<map<int, int>> reverse;// è§„çº¦ï¼Œç¬¬ä¸€ä¸ªintè¡¨ç¤ºç¬¦å·ï¼Œç¬¬äºŒä¸ªè¡¨ç¤ºè§„çº¦çš„çŠ¶æ€æ•°
-	map<int, set<int>> first_set; // firsté›†
-
-	// å¤„ç†tokenæ—¶ä¼šéšç€è¯»å–å˜åŒ–çš„å˜é‡
-	vector<quadra_tuple> quadra_tuple_list;
-	vector<Identifier> id_table; // å˜é‡è¡¨
-	// map<int, int> int_val; // å‚¨å­˜intå‹å˜é‡çš„å€¼
-	// map<int, double> double_map;// å‚¨å­˜doubleå‹å˜é‡çš„å€¼
-	vector<int> s_stack; // çŠ¶æ€æ ˆ
-	vector<int> V_stack; // ç¬¦å·æ ˆ
-	vector<int> id_stack;// æ“ä½œidåˆ†é…regçš„stack
-	int Vn_reg_cnt = 0; // ç»™æ‚é¡¹åˆ†é…id_tableçš„è®¡æ•°å™¨
-
-	// ä¼˜åŒ–å››å…ƒç»„ç”¨åˆ°çš„å˜é‡
-	vector<node> dag;
-	map<int, int> id2node;
-	int node_cnt;
-	vector<quadra_tuple> optimized_quadra_tuple_list;
-	int opt_temp_reg_cnt;
-
-	void print_quadra_tuple_list(const vector<quadra_tuple> & ql){
-		for(const auto & q: ql){_print_quadra_tuple_(q);}
-	}
-	void output()
+	puts("\n V_LIST");
+	for (int i = 0; i < V_list.size(); i++)
 	{
-		puts("-----* output *-----");
+		cout << V_list[i] << "  is_VT: " << is_VT[i] << endl;
+	}
+	puts("");
 
-		for (int i = 0; i < form_list.size(); i++)
+	cout << "\n to_epilon \nto_epilon_size  " << to_epsilon.size() << endl;
+	for (auto i : to_epsilon)
+	{
+		cout << V_list[i] << "  ";
+	}
+	puts("\n\n");
+
+	puts("first_set");
+	for (auto & s : first_set)
+	{
+		cout << V_list[s.first] << ": ";
+		for (auto i : s.second)
 		{
-			cout << V_list[form_list[i].left] << " ";
-			for(auto j :  form_list[i].right)
-			{
-				cout << V_list[j] << " ";
-			}
-			cout << endl;
-		}
-
-		puts("Form_List");
-		for(int i = 0; i < form_list.size(); i++){
-			form temp = form_list[i];
-			printf("%s->", V_list[temp.left].c_str());
-			for(int j = 0; j < temp.right.size(); j++){
-				printf("%s", V_list[temp.right[j]].c_str());
-			}
-			printf("  $  ");
-			for(auto j : temp.op){
-				printf("%s", atom_op[j].c_str());
-			}
-			for(auto j : temp.var){
-				int jv = j.v;
-				if(jv == -1){// æ˜¯å·¦å¼
-					printf("(L)%s.%s ", V_list[temp.left].c_str(), property[j.property].c_str());
-				}
-				else{// æ˜¯å³å¼
-					j.v == -2 ? 
-					printf("(temp.%s ", property[j.property].c_str()) :
-					printf("(R)%s.%s ", V_list[temp.right[j.v]].c_str(), property[j.property].c_str());
-				}
-				
-			}
-			cout << endl;
-		}
-
-		puts("\n V_LIST");
-		for (int i = 0; i < V_list.size(); i++)
-		{
-			cout << V_list[i] << "  is_VT: " << is_VT[i] << endl;
+			cout << V_list[i] << " ";
 		}
 		puts("");
+	}
 
-		cout << "\n to_epilon \nto_epilon_size  " << to_epsilon.size() << endl;
-		for(auto i:to_epsilon)
+	puts("item_clan");
+	for (int i = 0; i < item_clan.size(); i++)
+	{
+		printf("item%d : \n", i);
+		for (auto & j : item_clan[i])
 		{
-			cout << V_list[i] << "  ";
-		}
-		puts("\n\n");
-
-		puts("first_set");
-		for (auto & s:first_set)
-		{
-			cout << V_list[s.first] << ": ";
-			for(auto i:s.second)
+			cout << V_list[form_list[j.f].left] << "->";
+			for (auto k : form_list[j.f].right)
 			{
-				cout << V_list[i] << " ";
+				cout << V_list[k];
 			}
-			puts("");
+			cout << "  ";
+			cout << " " << j.p << "  " << V_list[j.fs] << endl;
 		}
+		cout << endl;
+	}
 
-		puts("item_clan");
-		for (int i = 0; i < item_clan.size(); i++)
+	puts("go & reverse");
+	for (int i = 0; i < go.size(); i++)
+	{
+		printf("item%d:\n", i);
+		puts("go:");
+		for (auto & j : go[i])
 		{
-			printf("item%d : \n", i);
-			for(auto & j : item_clan[i])
-			{
-				cout << V_list[form_list[j.f].left] << "->";
-				for(auto k : form_list[j.f].right)
-				{
-					cout << V_list[k];
-				}
-				cout << "  ";
-				cout << " " << j.p << "  " << V_list[j.fs] << endl;
-			}
-			cout <<endl;
+			cout << i << "  " << V_list[j.first] << "  " << j.second << endl;
 		}
-
-		puts("go & reverse");
-		for (int i = 0; i < go.size(); i++)
+		puts("reverse:");
+		for (auto & j : reverse[i])
 		{
-			printf("item%d:\n", i);
-			puts("go:");
-			for(auto & j:go[i])
+			cout << i << "  " << V_list[j.first] << "  ";
+			printf("%s->", V_list[form_list[j.second].left].c_str());
+			for (int i : form_list[j.second].right)
 			{
-				cout << i << "  " << V_list[j.first] << "  " << j.second << endl;
-			}
-			puts("reverse:");
-			for(auto & j:reverse[i])
-			{
-				cout << i << "  " << V_list[j.first] << "  ";
-				printf("%s->", V_list[form_list[j.second].left].c_str());
-				for (int i : form_list[j.second].right)
-				{
-					cout << V_list[i];
-				}
-				cout<< endl;
+				cout << V_list[i];
 			}
 			cout << endl;
 		}
-
-		puts("DAG");
-		int i = 0;
-		for(auto &n : dag){
-			printf("[%d]", i);
-			cout << "type:"<<(n.type >= 0 && n.type <= 3? (id_type)n.type : -1)<<"  come_op:"<<n.come_op;
-			printf(" is_leaf: %d, op1: %d, op2: %d, val: %d\n", (int)n.is_leaf, i, n.op1, n.op2, n.val);
-			i++;
-		}
-		cout << endl;
-
-		puts("id2node");
-		for(auto i : id2node){
-			printf("[%d] -> %d\n", i.first, i.second);
-		}
-
 		cout << endl;
 	}
 
-	// æœç´¢sæ˜¯å¦åœ¨V_LISTä¸­ï¼Œè‹¥ä¸åœ¨åˆ™åŠ å…¥ï¼Œè¿”å›såœ¨V_LSITä¸­çš„ç¼–å·
-	int V_idx(const string & s, bool is_push=true)
-	{
-		int i = 0;
-		for (i = 0; i < V_list.size(); i++)
-		{
-			if(V_list[i] == s)
-			{
-				break;
-			}
-		}
-		if(i == V_list.size() && is_push)
-		{
-			V_list.push_back(s);
-			// å¦‚æœå·¦å³ä¸º<>åˆ™è®¤ä¸ºæ˜¯VN
-			if(s[0] == '<' &&s[max(int(s.size()) - 1, 0)] == '>')
-			{
-				is_VT.push_back(false);
-			}
-			else
-			{
-				is_VT.push_back(true);
-			}
-		}
-				
-		return i;
+	puts("DAG");
+	int i = 0;
+	for (auto &n : dag) {
+		printf("[%d]", i);
+		cout << "type:" << (n.type >= 0 && n.type <= 3 ? (id_type)n.type : -1) << "  come_op:" << n.come_op;
+		printf(" is_leaf: %d, op1: %d, op2: %d, val: %d\n", (int)n.is_leaf, n.op1, n.op2, n.val);
+		i++;
 	}
-	
-	// å¯»æ‰¾äº§ç”Ÿç©ºçš„Vn
-	void find_epsilon()
+	cout << endl;
+
+	puts("id2node");
+	for (auto i : id2node) {
+		printf("[%d] -> %d\n", i.first, i.second);
+	}
+
+	cout << endl;
+}
+
+
+
+// ËÑË÷sÊÇ·ñÔÚV_LISTÖĞ£¬Èô²»ÔÚÔò¼ÓÈë£¬·µ»ØsÔÚV_LSITÖĞµÄ±àºÅ
+int sematic_parser::V_idx(const string & s, bool is_push)
+{
+	int i = 0;
+	for (i = 0; i < V_list.size(); i++)
 	{
-		bool change = false;
-		while(1)
+		if (V_list[i] == s)
 		{
-			change = false;
-			for (int i = 0; i < V_list.size(); i++)
-			{	
-				if(is_VT[i] == true || (is_VT[i] ==false && to_epsilon.find(i) != to_epsilon.end()))
+			break;
+		}
+	}
+	if (i == V_list.size() && is_push)
+	{
+		V_list.push_back(s);
+		// Èç¹û×óÓÒÎª<>ÔòÈÏÎªÊÇVN
+		if (s[0] == '<' &&s[max(int(s.size()) - 1, 0)] == '>')
+		{
+			is_VT.push_back(false);
+		}
+		else
+		{
+			is_VT.push_back(true);
+		}
+	}
+
+	return i;
+}
+
+// Ñ°ÕÒ²úÉú¿ÕµÄVn
+void sematic_parser::find_epsilon()
+{
+	bool change = false;
+	while (1)
+	{
+		change = false;
+		for (int i = 0; i < V_list.size(); i++)
+		{
+			if (is_VT[i] == true || (is_VT[i] == false && to_epsilon.find(i) != to_epsilon.end()))
+			{
+				continue;
+			}
+			for (auto f : form_map[i])
+			{
+				bool flag = false;
+				for (int j = 0; j < form_list[f].right.size(); j++)
 				{
-					continue;
-				}
-				for(auto f:form_map[i])
-				{
-					bool flag = false;
-					for (int j = 0; j < form_list[f].right.size(); j++)
-					{
-						//å¦‚æœæ˜¯Vtæˆ–è€…ä¸æŒ‡å‘epsilonçš„Vtè·³è¿‡
-						int idx = form_list[f].right[j];
-						if(is_VT[idx] == true || (is_VT[idx] ==false && to_epsilon.find(idx) == to_epsilon.end()))
-						{
-							break;
-						}
-						if(j == form_list[f].right.size() -1)
-						{
-							flag = change = true;
-							to_epsilon.insert(i);
-						}
-						
-					}
-					if(flag == true)
+					//Èç¹ûÊÇVt»òÕß²»Ö¸ÏòepsilonµÄVtÌø¹ı
+					int idx = form_list[f].right[j];
+					if (is_VT[idx] == true || (is_VT[idx] == false && to_epsilon.find(idx) == to_epsilon.end()))
 					{
 						break;
 					}
-				}	
+					if (j == form_list[f].right.size() - 1)
+					{
+						flag = change = true;
+						to_epsilon.insert(i);
+					}
 
+				}
+				if (flag == true)
+				{
+					break;
+				}
 			}
-			if(change == false)
-			{
-				break;
-			}
-			
+
 		}
+		if (change == false)
+		{
+			break;
+		}
+
 	}
+}
 
-	// p æŒ‡å‘å­—ç¬¦ä¸²è¯»å–æ•°å­—çš„ç¬¬ä¸€ä¸ªä½ç½®
-	inline int read_int(const string & s, int & p){
-		int ret = 0;
-		bool t = false;
-		while(s[p] < '0' || s[p] > '9'){
-			p++;
-		}
-		if(s[max(p - 1, 0)] == '-')t = true; 
-		while(s[p] >='0' && s[p] <='9'){
-			ret = ret * 10 + s[p++] - '0';
-		}
-		return t ? -ret : ret;
-	}
-
-	inline int chk_dot(const string & s){
-		for(int i = 0; i < s.size(); i++){
-			if(s[i] == '.')return i;
-		}
-		return -1;
-	}
-
-
-	// p æŒ‡å‘å­—ç¬¦ä¸²è¯»å–æ•°å­—çš„ç¬¬ä¸€ä¸ªä½ç½®
-	inline double read_double(const string & s, int p){
-		bool t = false;
-		double z = 0, b = 0.1;
-		if(s[p] == '-'){
-			t = false;
-			p++;
-		}
-		while(s[p] >='0' && s[p] <='9'){
-			z = z * 10 + s[p++] - '0';
-		}
+// p Ö¸Ïò×Ö·û´®¶ÁÈ¡Êı×ÖµÄµÚÒ»¸öÎ»ÖÃ
+inline int sematic_parser::read_int(const string & s, int & p) {
+	int ret = 0;
+	bool t = false;
+	while (s[p] < '0' || s[p] > '9') {
 		p++;
-		while(s[p] >='0' && s[p] <='9'){
-			z +=  (s[p++] - '0') * b;
-			b *= 0.1;
-		}
-		return t ? -z : z;
 	}
+	if (s[max(p - 1, 0)] == '-')t = true;
+	while (s[p] >= '0' && s[p] <= '9') {
+		ret = ret * 10 + s[p++] - '0';
+	}
+	return t ? -ret : ret;
+}
 
-	// è¯»å–è¯­æ³•
-	void read_syntax()
+inline int sematic_parser::chk_dot(const string & s) {
+	for (int i = 0; i < s.size(); i++) {
+		if (s[i] == '.')return i;
+	}
+	return -1;
+}
+
+
+// p Ö¸Ïò×Ö·û´®¶ÁÈ¡Êı×ÖµÄµÚÒ»¸öÎ»ÖÃ
+inline double sematic_parser::read_double(const string & s, int p) {
+	bool t = true;
+	double z = 0, b = 0.1;
+	if (s[p] == '-') {
+		t = false;
+		p++;
+	}
+	while (s[p] >= '0' && s[p] <= '9') {
+		z = z * 10 + s[p++] - '0';
+	}
+	p++;
+	while (s[p] >= '0' && s[p] <= '9') {
+		z += (s[p++] - '0') * b;
+		b *= 0.1;
+	}
+	return t ? z : -z;
+}
+
+int sematic_parser::str2Num(const string  s)
+{
+	int ret = 0, p = 0;
+	while (s[p] != 0)
 	{
-		string buf;
-		// é¢„å¤„ç†
-		V_idx(end_s);
-		V_idx(start_s);
-		form_list.push_back(form(V_idx(start_s), {V_idx("<S>")}));
-		
-		while(getline(f1, buf)){
-			if(buf.size() == 0){
-				continue;
-			}
-			int p = 0, pp = 0;
-			int left;
-			vector<int> right;
-			//è¯»å–å·¦éƒ¨
-			while(buf[p] != ' ' &&buf[p] != 0){
+		ret *= 10;
+		ret += s[p] - '0';
+		p++;
+	}
+	return ret;
+}
+
+node_type sematic_parser::check_node_type(const string & s) 
+{
+	auto iter = node_type_map.find(s);
+	//map<string, node_type>::iterator iter = node_type_map.find(s);
+	if ( iter == node_type_map.end())return node_nop;
+	return (*iter).second;
+}
+
+// ¶ÁÈ¡Óï·¨
+void sematic_parser::read_syntax()
+{ 
+	string buf;
+	// Ô¤´¦Àí
+	V_idx(end_s);
+	V_idx(start_s);
+	form_list.push_back(form(V_idx(start_s), { V_idx("<S>") }));
+
+	while (getline(f1, buf)) {
+		if (buf.size() == 0) {
+			continue;
+		}
+		if (!buf[0] || buf[0] == '/' && buf[1] == '/')continue;
+		int p = 0, pp = 0;
+		int left;
+		vector<int> right;
+		//¶ÁÈ¡×ó²¿
+		while (buf[p] != ' ' && buf[p]) {
+			p++;
+		}
+		string temp = buf.substr(pp, p - pp);
+		left = V_idx(temp);
+		// ¶ÁÈ¡ÓÒ²¿
+		while (buf[p] != '$' && buf[p])
+		{
+			while (buf[p] == ' ')
+			{
 				p++;
 			}
+			pp = p;
+			while (buf[p] != ' ' && buf[p] && buf[p] != '$')
+			{
+				p++;
+			}
+			if (p - pp == 0)
+			{
+				continue;
+			}
 			string temp = buf.substr(pp, p - pp);
-			left = V_idx(temp);
-			// è¯»å–å³éƒ¨
-			while(buf[p] != '$')
+			right.push_back(V_idx(temp));
+			while (buf[p] == ' ')
 			{
-				while(buf[p] == ' ')
-				{
-					p++;
-				}
-				pp = p;
-				while(buf[p] != ' ' && buf[p] != 0 && buf[p] != '$')
-				{
-					p++;
-				}
-				if(p - pp ==0)
-				{
-					continue;
-				}
-				string temp = buf.substr(pp, p - pp);
-				right.push_back(V_idx(temp));
+				p++;
 			}
-			// é»˜è®¤è¯­æ³•ä¸­çš„äº§ç”Ÿå¼ä¸ä¼šé‡å¤
-			// å¦‚æœå³éƒ¨æ²¡æœ‰ä¸œè¥¿ï¼Œåˆ™ä¸ºepsilon
-			if(right.size() == 0)
+		}
+		// Ä¬ÈÏÓï·¨ÖĞµÄ²úÉúÊ½²»»áÖØ¸´
+		// Èç¹ûÓÒ²¿Ã»ÓĞ¶«Î÷£¬ÔòÎªepsilon
+		if (right.size() == 0)
+		{
+			right.push_back(0);
+			to_epsilon.insert(left);
+		}
+		form_list.push_back(form(left, right));
+		for (int i = 0; i < form_list.size(); i++)
+		{
+			form_map[form_list[i].left].push_back(i);
+		}
+		// ¶ÁÈ¡±í´ïÊ½ ,µ±Ç°pÖ¸Ïò$
+		if (!buf[p]) continue;
+		p++;
+		int idx = form_list.size() - 1;
+		bool clr_temp = true; // ºöÂÔµÚÒ»¸ö²Ù×÷·ûµÄ·µ»ØÖµ
+		// Ñ­»·¶ÁÈ¡±í´ïÊ½
+		while (1) {
+			while (buf[p] == ' ')p++;
+			if (!buf[p])break;
+			int pp = p;
+			while (buf[p] != ' ' && buf[p] != 0)p++;
+			string temp = buf.substr(pp, p - pp); // µÃµ½²Ù×÷µÄ×Ö·û´®
+			auto iter = node_type_map.find(temp);
+			// Èç¹û½Úµã
+			if (iter == node_type_map.end())
 			{
-				right.push_back(0);
-				to_epsilon.insert(left);
-			}
-			form_list.push_back(form(left, right));
-			for (int i = 0; i < form_list.size(); i++)
-			{
-				form_map[form_list[i].left].push_back(i);
-			}
-			// è¯»å–è¡¨è¾¾å¼ ,å½“å‰pæŒ‡å‘$
-			p++;
-			int idx = form_list.size() - 1;
-			int len = read_int(buf, p);
-			bool clr_temp = true; // å¿½ç•¥ç¬¬ä¸€ä¸ªæ“ä½œç¬¦çš„è¿”å›å€¼
-			while(len){
-				while(buf[p] == ' ')p++;
-				if(buf[p] == 0)break;
-				int pp = p;
-				while(buf[p] != ' ' && buf[p] != 0)p++;
-				string temp = buf.substr(pp, p - pp);
-				int pos = chk_dot(temp);
-				if(temp == ";"){
-					clr_temp = true;
-					continue;
-				}
-				if(pos == -1){ // å¦‚æœæ“ä½œç¬¦
-					form_list[idx].op.push_back(atom_op_idx(temp));
-					if(clr_temp == false){
-						form_list[idx].var.push_back(operand(-2, 0)); // æš‚å­˜ç»“æœç”¨
+				int _pointer = 0;
+				for (_pointer = 0; temp[_pointer] != 0 && temp[_pointer] != '_'; _pointer++);
+				if (_pointer == temp.size()) { //¸ÃVÃ»ÓĞÏÂ»®Ïß
+					if (temp == V_list[form_list[idx].left]) {
+						form_list[idx].var.push_back(-1);
 					}
-					else{
-						clr_temp = false;
-					}
-				}
-				else{// å¦‚æœæ˜¯å±æ€§
-					string ls, rs;
-					ls = buf.substr(pp, pos);
-					rs = buf.substr(pp + pos + 1, p - pos - 1 - pp);
-					//å°†E_1è¿™äºŒç§ç±»å‹è½¬åŒ–ä¸ºvåœ¨äº§ç”Ÿå¼ä¸­çš„ä½ç½®ï¼Œå·¦éƒ¨ä¸ç”¨_ï¼Œå³éƒ¨æ ‡ç¤ºç¬¬å‡ ä¸ª
-					//ä»ä¸‹æ ‡0å¼€å§‹
-					int _pointer = 0;
-					for (_pointer = 0; ls[_pointer] != 0 && ls[_pointer] != '_'; _pointer++){}
-					if(_pointer == ls.size()){ //è¯¥Væ²¡æœ‰ä¸‹åˆ’çº¿
-						if(ls == V_list[form_list[idx].left]){
-							form_list[idx].var.push_back(operand(-1, property_idx(rs)));
-						}
-						else{
-							for (int i = 0; i < form_list[idx].right.size(); i++){
-								if(V_list[form_list[idx].right[i]] == ls){
-									form_list[idx].var.push_back(operand(i, property_idx(rs))); 
-									break;
-								}
-							}	
-						}
-					}
-					else{ // æœ‰ä¸‹åˆ’çº¿çš„æƒ…å†µ
-						int pp = _pointer + 1;
-						string v1 = ls.substr(0, _pointer);
-						if(v1[0] ==  '<'){
-							v1 += string(">");
-						}
-						int num = read_int(ls, _pointer);
-						for (int i = 0; i < form_list[idx].right.size(); i++){
-							if(v1 == V_list[form_list[idx].right[i]]){
-								num--;
-								if(num == 0){
-									form_list[idx].var.push_back(operand(i, property_idx(rs))); 
-									break;
-								}
+					else {
+						for (int i = 0; i < form_list[idx].right.size(); i++) {
+							if (V_list[form_list[idx].right[i]] == temp) {
+								form_list[idx].var.push_back(i);
+								break;
 							}
 						}
 					}
-					// form_list[idx].var.push_back(operand(V_idx(ls, false), property_idx(rs)));
 				}
-
-			}
-		}
-
-
-		find_epsilon();
-		gen_first();
-	}
-
-	set<int> union_first(const set<int> & a, const set<int> & b)
-	{
-		set<int> c;
-		set_union(a.begin(), a.end(), b.begin(), b.end(), inserter(c, c.begin()));
-		return c;
-	}
-	
-	// å­˜åœ¨è¿­ä»£ï¼Œé«˜å±ä»£ç æ®µ
-	set<int> form_first_set(int idx,set<int> & vis)
-	{
-		set<int> ret;
-		int t = form_list[idx].right[0];
-		int p = 0, len = form_list[idx].right.size();
-		if(is_VT[t] == true)
-		{
-			return set<int>{t};
-		}
-		else if(to_epsilon.find(t) != to_epsilon.end())
-		{
-			
-			for (; p < len; p++)
-			{
-				if(form_list[idx].right[p] != 0 && to_epsilon.find(form_list[idx].right[p]) == to_epsilon.end())
-				{
-					break;
-				}
-			}
-			if(p == len)
-			{
-				return set<int>{0};
-			}
-			else
-			{
-				t = form_list[idx].right[p];
-				if(is_VT[t])
-				{
-					return set<int>{t};
-				}
-			}
-		}
-
-		// æ¥ä¸‹æ¥çš„è¿™ä¸ªtæ˜¯ä¸€ä¸ªä¸ä¸ºç©ºçš„Vn
-		if(first_set[t].size() != 0)
-		{
-			ret = union_first(ret, first_set[t]);
-		}
-		else if(vis.find(t) == vis.end())
-		{
-			vis.insert(t);
-			set<int> temp;
-			for (auto f : form_map[t])
-			{
-
-				temp = union_first(temp, form_first_set(f, vis));
-			}
-			first_set[t] = temp;
-			ret = form_first_set(idx, vis);
-		}
-		return ret;
-	}
-	
-	// æ±‚FIRST
-	void gen_first()
-	{
-		//å¯¹æ¯ä¸ªVnæ±‚firstset
-		// first_set[1].insert(0); è¯´å®è¯æˆ‘çœ‹ä¸æ‡‚ä¸ºä»€ä¹ˆè¦å†™è¿™å¥è¯
-		for (int i = 0; i < V_list.size(); i++)
-		{
-			if(is_VT[i] == true)
-			{
-				continue;
-			}
-			set<int> temp;
-			for(auto f:form_map[i])
-			{
-				//è®¾ç½®visæ˜¯ä¸ºäº†åˆ‡æ–­å¾ªç¯ first
-				set<int> vis{i};
-				temp = union_first(temp, form_first_set(f,vis));
-			}
-			first_set[i] = temp;
-
-		}
-		
-	}
-	
-	// æ±‚é¡¹ç›®é›†
-	int closure(vector<item> & vi, int fa)
-	{
-		int p = 0;
-		set<item> chk(vi.begin(), vi.end());
-		// å¯¹æ¯ä¸ªé¡¹ç›®æ‰©å±•
-		while(p < vi.size())
-		{
-			// å½“å‰é¡¹ç›®çš„form
-			form tf = form_list[vi[p].f];
-			// å¦‚æœå½“å‰é¡¹ç›®çš„.æŒ‡å‘æœ€ååˆ™continue
-			if(vi[p].p == tf.right.size())
-			{
-				p++;
-				continue;
-			}
-			// å½“å‰åŸç‚¹å³è¾¹çš„V
-			int vv = tf.right[vi[p].p];
-			// å¦‚æœæ˜¯VTç»§ç»­
-			if(is_VT[vv] == true)
-			{
-				p++;
-				continue;
-			}
-			// å½“å‰.æ‰€æŒ‡çš„ä½ç½®
-			int tp = vi[p].p;
-			// å¦‚æœæ˜¯Vnåˆ™è¦æ‰©å±•
-			// æå‰è®¡ç®—å‡ºå‰å‘æœç´¢ç¬¦
-			vector<int> fss;
-			while(1)
-			{
-				tp++;
-				if(tp == tf.right.size())
-				{
-					break;
-				}
-				if(is_VT[tf.right[tp]])
-				{
-					// è¯»å–åˆ°VTåˆ™é€€å‡º
-					fss.push_back(tf.right[tp]);
-					break;
-				}
-				bool to_e = false;
-				for(auto first_c : first_set[tf.right[tp]])
-				{
-					if(first_c != 0)
-					{
-						fss.push_back(first_c);
+				{ // ÓĞÏÂ»®ÏßµÄÇé¿ö
+					int pp = _pointer + 1;
+					string v1 = temp.substr(0, _pointer);
+					if (v1[0] == '<') {
+						v1 += string(">");
 					}
-					else
-					{
-						to_e = true;
+					int num = read_int(temp, _pointer);
+					for (int i = 0; i < form_list[idx].right.size(); i++) {
+						if (v1 == V_list[form_list[idx].right[i]]) {
+							num--;
+							if (num == 0) {
+								form_list[idx].var.push_back(i);
+								break;
+							}
+						}
 					}
 				}
-				if(to_e == false)
-				{
-					break;
-				}
 			}
-			if(fss.size() == 0)
+			else form_list[idx].ops.push_back((*iter).second);
+		}
+	}
+
+
+	find_epsilon();
+	gen_first();
+}
+
+set<int> sematic_parser::union_first(const set<int> & a, const set<int> & b)
+{
+	set<int> c;
+	set_union(a.begin(), a.end(), b.begin(), b.end(), inserter(c, c.begin()));
+	return c;
+}
+
+// ´æÔÚµü´ú£¬¸ßÎ£´úÂë¶Î
+set<int> sematic_parser::form_first_set(int idx, set<int> & vis)
+{
+	set<int> ret;
+	int t = form_list[idx].right[0];
+	int p = 0, len = form_list[idx].right.size();
+	if (is_VT[t] == true)
+	{
+		return set<int>{t};
+	}
+	else if (to_epsilon.find(t) != to_epsilon.end())
+	{
+
+		for (; p < len; p++)
+		{
+			if (form_list[idx].right[p] != 0 && to_epsilon.find(form_list[idx].right[p]) == to_epsilon.end())
 			{
-				fss.push_back(vi[p].fs);
+				break;
 			}
-			// å¯¹Vnå·¦éƒ¨çš„form f
-			for(auto f:form_map[vv])
+		}
+		if (p == len)
+		{
+			return set<int>{0};
+		}
+		else
+		{
+			t = form_list[idx].right[p];
+			if (is_VT[t])
 			{
-				for(auto first_c : fss)
-				{
-					item ti(f, 0, first_c);
-					if(chk.find(ti) == chk.end())
-					{
-						chk.insert(ti);
-						vi.push_back(ti);
-					}
-					
-				}
+				return set<int>{t};
 			}
+		}
+	}
+
+	// ½ÓÏÂÀ´µÄÕâ¸ötÊÇÒ»¸ö²»Îª¿ÕµÄVn
+	if (first_set[t].size() != 0)
+	{
+		ret = union_first(ret, first_set[t]);
+	}
+	else if (vis.find(t) == vis.end())
+	{
+		vis.insert(t);
+		set<int> temp;
+		for (auto f : form_map[t])
+		{
+
+			temp = union_first(temp, form_first_set(f, vis));
+		}
+		first_set[t] = temp;
+		ret = form_first_set(idx, vis);
+	}
+	return ret;
+}
+
+// ÇóFIRST
+void sematic_parser::gen_first()
+{
+	//¶ÔÃ¿¸öVnÇófirstset
+	// first_set[1].insert(0); ËµÊµ»°ÎÒ¿´²»¶®ÎªÊ²Ã´ÒªĞ´Õâ¾ä»°
+	for (int i = 0; i < V_list.size(); i++)
+	{
+		if (is_VT[i] == true)
+		{
+			continue;
+		}
+		set<int> temp;
+		for (auto f : form_map[i])
+		{
+			//ÉèÖÃvisÊÇÎªÁËÇĞ¶ÏÑ­»· first
+			set<int> vis{ i };
+			temp = union_first(temp, form_first_set(f, vis));
+		}
+		first_set[i] = temp;
+
+	}
+}
+
+// ÇóÏîÄ¿¼¯
+int sematic_parser::closure(vector<item> & vi, int fa)
+{
+	int p = 0;
+	set<item> chk(vi.begin(), vi.end());
+	// ¶ÔÃ¿¸öÏîÄ¿À©Õ¹
+	while (p < vi.size())
+	{
+		// µ±Ç°ÏîÄ¿µÄform
+		form tf = form_list[vi[p].f];
+		// Èç¹ûµ±Ç°ÏîÄ¿µÄ.Ö¸Ïò×îºóÔòcontinue
+		if (vi[p].p == tf.right.size())
+		{
 			p++;
+			continue;
 		}
-		bool flag = false;
-		if(fa != -1)
+		// µ±Ç°Ô­µãÓÒ±ßµÄV
+		int vv = tf.right[vi[p].p];
+		// Èç¹ûÊÇVT¼ÌĞø
+		if (is_VT[vv] == true)
 		{
-			int i = 0;
-			for ( i = 0; i < item_clan.size();i++)
-			{
-				flag = false;
-				for (auto &j : item_clan[i])
-				{
-					if (chk.find(j) == chk.end())
-					{
-						flag = true;
-						break;
-					}
-				}
-				if(flag == false)
-				{
-					return i;
-				}
-			}
-		}
-		item_clan.push_back(vi);
-		return item_clan.size() - 1;
-		
-		
-	}
-
-	// actionâ€”â€”gotoè¡¨ä¸é¡¹ç›®é›†æ—ä¸€èµ·äº§ç”Ÿ
-	void generate_clan()
-	{
-		// åˆå§‹åŒ–
-		item it0 = item(0, 0, 0);// <start>->.<S>, #åŠ å…¥é¡¹ç›®é›†
-		vector<item> vi{it0};
-		closure(vi, -1);
-		int p = 0;
-		while (p < item_clan.size())
-		{	
-			go.push_back(map<int, int>{});
-			reverse.push_back(map<int, int>{});
-			// å…ˆå¾—åˆ°è§„çº¦
-			for(auto & f:item_clan[p])
-			{
-				
-				if(f.p == form_list[f.f].right.size() || form_list[f.f].right[0] == 0)
-				{
-					(reverse[p])[f.fs] = f.f;
-				}
-			}
-			// å†å¾—åˆ°go
-			for (int i = 1; i < V_list.size(); i++)
-			{
-				vector<item> it;
-				vector<int> goi;
-				for(auto & f:item_clan[p])
-				{
-					if(f.p < form_list[f.f].right.size())
-					{
-						if(form_list[f.f].right[f.p] == i)
-						{
-							goi.push_back(i);
-							it.push_back(item(f.f, f.p + 1, f.fs));
-						} 
-					}
-				}
-				if(it.size() > 0)
-				{
-					int dest = closure(it, p);
-					for (int j = 0; j < goi.size(); j++)
-					{
-						go[p][goi[j]] = dest;
-					}
-				}
-			}
 			p++;
+			continue;
 		}
-		
-	}
-
-	// è¿”å›ç›¸åŠ ç»“æœçš„å˜é‡çš„ç¼–å·
-	int _add_(int idx1, int idx2, int dst){ // 1å·æ“ä½œadd
-		quadra_tuple_list.push_back(quadra_tuple(enum_add, idx1, idx2, dst));
-		return 0;
-	}
-
-	int _mul_(int idx1, int idx2, int dst){
-		quadra_tuple_list.push_back(quadra_tuple(enum_mul, idx1, idx2, dst));
-		return 0;
-	}
-
-	int _sub_(int idx1, int idx2, int dst){
-		quadra_tuple_list.push_back(quadra_tuple(enum_sub, idx1, idx2, dst));
-		return 0;
-	}
-
-	int _div_(int idx1, int idx2, int dst){
-		quadra_tuple_list.push_back(quadra_tuple(enum_div, idx1, idx2, dst));
-		return 0;
-	}
-
-	int _assign_(int idx1, int idx2){
-		quadra_tuple_list.push_back(quadra_tuple(enum_assign, idx1, idx2));
-		return 0;
-	}
-
-	int _error_(){
-		printf("func ERROR\n");
-		return 0;
-	}
-
-
-	// æ‰“å°idxå¯¹åº”å…ƒç´ çš„name(string)
-	int _print_(int idx){
-		quadra_tuple_list.push_back(quadra_tuple(enum_print, idx));
-		return 0;
-	}
-	
-	// æ ¹æ®è¾“å…¥æ•°å­—æ¥è°ƒç”¨å‡½æ•°
-	void num2func(operation opn, int idx1, int idx2=0, int dst=0){
-		switch(opn){
-			case enum_add:
-				_add_(idx1, idx2, dst);
-				break;
-			case enum_sub:
-				_sub_(idx1, idx2, dst);
-				break;
-			case enum_mul:
-				_mul_(idx1, idx2, dst);
-				break;
-			case enum_div:
-				_div_(idx1, idx2, dst);
-				break;
-			case enum_print:
-				_print_(idx1);
-				break;
-			case enum_assign:
-				_assign_(idx1, idx2);
-				break;
-			default:
-				_error_();
-		}
-		
-
-	}
-
-	int add_id(const string & name, id_type type, int val=0,  int addr=0, int size=0, int level=0){
-		int i = 0;
-		if(name[0] == '$'){ // æš‚å­˜æ•°æ®
-
-		}
-		else{
-			vector<Identifier>::iterator iter = id_table.begin();
-			for(;iter != id_table.end(); i++,iter++){
-				if(name == (*iter).name){
-					if(type != (*iter).type){
-						return -2;// -2è¡¨ç¤ºå…ƒç´ ç±»å‹é”™è¯¯
-					}
-					else{
-						return i;
-					}
-				}
-			}
-		}
-		
-		id_table.push_back(Identifier(name, val, type, addr, size, level));
-		return -1;// -1è¡¨ç¤ºæœ«å°¾æ·»åŠ 
-	}
-
-	int add_temp(id_type it=ident){
-		stringstream ss;
-		ss << Vn_reg_cnt++;
-		string temps;
-		ss >> temps;
-		temps = string("$") + temps;
-		add_id(temps, it);
-		return id_table.size() - 1;
-	}
-
-	void parse_begin()
-	{
-		s_stack.clear();
-		V_stack.clear();
-		s_stack.push_back(0);
-		V_stack.push_back(0);
-		
-	}
-
-	
-	
-	
-
-
-	// TODOéœ€è¦å¤„ç†å°†è¡¨è¾¾å¼è½¬åŒ–ä¸º4å…ƒå¼
-	// id_stackç•™ç€åœ¨åŸæ¥å‡½æ•°é‡Œé¢pop
-	// è¿™é‡Œåªå¤„ç†è¡¨è¾¾å¼
-	int deal_expression(int id_num, int form_idx, int lf){
-		vector<int> rf = vector<int>(id_stack.end() - id_num, id_stack.end());
-		// å°†è¡¨è¾¾å¼è¾“å‡ºä¸º4å…ƒå¼
-		const form &tf = form_list[form_idx];
-		int opp = tf.op.size(), 
-		    varp = tf.var.size() ;
-		while(opp > 0){
-			operation to = (operation)tf.op[--opp];
-			int top;
-			switch(to){// ä»æ“ä½œç»„æ ˆå¼¹å‡ºä¸€ä¸ªå…ƒç´ 
-				case enum_print:{ // å¼¹å‡ºä¸€ä¸ªæ“ä½œæ•°
-					int tv = tf.var[--varp].v, idx1;
-					if(tv == -2) idx1 = add_temp(), varp++;
-					else idx1 = tv == -1 ? lf : rf[tv];
-					num2func(enum_print, idx1);
-					break;
-				}
-					
-				case enum_add:{
-					int idx1 = tf.var[--varp].v == -1 ? lf : tf.var[varp].v == -2 ? top :rf[tf.var[varp].v];;
-					int idx2 = tf.var[--varp].v == -1 ? lf : rf[tf.var[varp].v];
-					int tv = tf.var[--varp].v, dst;
-					if(tv == -2){
-						top = dst = add_temp(), varp++;
-					}
-					else dst = tv == -1 ? lf : rf[tf.var[varp].v];
-					num2func(enum_add, idx1, idx2, dst);
-					break;
-				}
-				case enum_sub:{
-					int idx1 = tf.var[--varp].v == -1 ? lf : rf[tf.var[varp].v];
-					int idx2 = tf.var[--varp].v == -1 ? lf : rf[tf.var[varp].v];
-					int tv = tf.var[--varp].v, dst;
-					if(tv == -2)top = dst = add_temp(), varp++;
-					else dst = tv == -1 ? lf : tv;
-					num2func(enum_sub, idx1, idx2, dst);
-					break;
-				}
-				case enum_mul:{
-					int idx1 = tf.var[--varp].v == -1 ? lf : tf.var[varp].v == -2 ? top :rf[tf.var[varp].v];;
-					int idx2 = tf.var[--varp].v == -1 ? lf : rf[tf.var[varp].v];
-					int tv = tf.var[--varp].v, dst;
-					if(tv == -2)top = dst = add_temp(), varp++;
-					else dst = tv == -1 ? lf : rf[tv];
-					num2func(enum_mul, idx1, idx2, dst);
-					break;
-				}
-				case enum_div:{
-					int idx1 = tf.var[--varp].v == -1 ? lf : tf.var[varp].v == -2 ? top :rf[tf.var[varp].v];;
-					int idx2 = tf.var[--varp].v == -1 ? lf : rf[tf.var[varp].v];
-					int tv = tf.var[--varp].v, dst;
-					if(tv == -2)top = dst = add_temp(), varp++;
-					else dst = tv == -1 ? lf : rf[tf.var[varp].v];
-					num2func(enum_div, idx1, idx2, dst);
-					break;
-				}
-				case enum_assign:{
-					int idx1 = tf.var[--varp].v == -1 ? lf : tf.var[varp].v == -2 ? top :rf[tf.var[varp].v];
-					int tv = tf.var[--varp].v, idx2;
-					if(tv == -2)idx2 = add_temp(), varp++;
-					else top = idx2 = tv == -1 ? lf : rf[tf.var[varp].v];
-					num2func(enum_assign, idx1, idx2);
-					break;
-				}
-			}
-		}
-		
-
-		return 0;
-	}
-
-	// TODOå¤„ç†parseï¼Œ1.äº§ç”Ÿå‚æ•°è¡¨ 2.è¯­æ³•æ ‘ 3.ç‰¹æ®Šå¤„ç†æŸäº›è¾“å…¥
-	// åˆ†æåºåˆ— è¿”å›é”™è¯¯ç±»å‹ï¼Œæˆ–è€…æ¥å— -1ç¨‹åºé”™è¯¯ 0æ¥å— 1ä¸è¯†åˆ«çš„Vt 2æ‹’ç» 3å¤„ç†ä¸­ 4æ ‡è¯†ç¬¦ç±»å‹é”™è¯¯
-	int parse_Vt(string  s, string Vt, string type)
-	{
-		int idx = V_idx(s, false);
-		if(idx == V_list.size()) // æœªè¯†åˆ«Vt
+		// µ±Ç°.ËùÖ¸µÄÎ»ÖÃ
+		int tp = vi[p].p;
+		// Èç¹ûÊÇVnÔòÒªÀ©Õ¹
+		// ÌáÇ°¼ÆËã³öÇ°ÏòËÑË÷·û
+		vector<int> fss;
+		while (1)
 		{
-			return 1;
-		}
-		int back = s_stack.back();
-		if(go[back].find(idx) != go[back].end()) // è½¬ç§»
-		{
-			int ret = -1;
-			if(type == "æ ‡è¯†ç¬¦"){
-				ret = add_id(Vt, ident); // åœ¨é€å…¥è¯­æ³•ä¹‹å‰å…ˆåŠ å…¥table
-			}
-			else if(type == "å¸¸é‡"){
-				int p = 0;
-				int val = read_int(Vt, p);
-				ret = add_id(Vt, const_var, val); // åœ¨é€å…¥è¯­æ³•ä¹‹å‰å…ˆåŠ å…¥table
-			}
-			else{ // å¤„ç†é™¤æ ‡è¯†ç¬¦å’Œå¸¸é‡ä¹‹å¤–çš„æ‚é¡¹
-				ret = add_temp();
-			}
-			if(ret == -1){
-				ret = id_table.size() - 1;
-			}
-			id_stack.push_back(ret);
-			V_stack.push_back(idx);
-			s_stack.push_back(go[back][idx]);
-			return 3;
-		}
-		else if(reverse[back].find(idx) != reverse[back].end()) // è§„çº¦
-		{
-			int form_idx = reverse[back][idx];
-			int cnt = form_list[form_idx].right.size();
-			// int ret = add_id(string("$") + V_list[form_list[form_idx].left], type_other) == -1 ? id_table.size() - 1 : ret;
-			int ret = add_temp();
-			// ç‰¹åˆ¤ç©ºäº§ç”Ÿå¼
-			if(form_list[reverse[back][idx]].right[0] == 0)
+			tp++;
+			if (tp == tf.right.size())
 			{
-				cnt = 0;
+				break;
 			}
-			deal_expression(cnt, form_idx, ret);
-			while(cnt--)
+			if (is_VT[tf.right[tp]])
 			{
-				s_stack.pop_back();
-				V_stack.pop_back();
-				id_stack.pop_back();
+				// ¶ÁÈ¡µ½VTÔòÍË³ö
+				fss.push_back(tf.right[tp]);
+				break;
 			}
-			V_stack.push_back(form_list[form_idx].left);
-			
-			id_stack.push_back(ret);
-			if(V_stack.size() == 2 && V_stack.back() == 1)
+			bool to_e = false;
+			for (auto first_c : first_set[tf.right[tp]])
 			{
-				return 0;
-			}
-			int tl = s_stack.size();
-			s_stack.push_back(go[s_stack[tl - 1]][form_list[form_idx].left]);
-			// è§„çº¦ä¸ä¼šæ¶ˆè€—ä¸‹ä¸€ä¸ªç¬¦å·
-			return parse_Vt(s, Vt, type);
-		}
-		else // è¾“å…¥é”™è¯¯ï¼Œæ‹’ç»æ¥å—
-		{
-			return 2;
-		}
-		return -1;
-	}
-
-	int str2Num(const string  s)
-	{
-		int ret = 0, p = 0;
-		while(s[p] != 0)
-		{
-			ret *= 10;
-			ret += s[p] - '0';
-			p++;
-		}
-		return ret;
-	}
-
-	// è¯»å–TASK1çš„è¾“å‡º
-	// TODOç»™å‡ºé”™è¯¯çš„åŸå› 
-	void parse_code()
-	{
-		string buf;
-		// å¼€å§‹å¤„ç†ï¼Œåˆå§‹åŒ–ï¼Œæ„Ÿè§‰æœ‰ç‚¹ç±»ä¼¼openGL
-		parse_begin();
-		int result;
-		bool have_main = false;
-		int line_idx;
-		string type, Vt;
-		while(getline(f2, buf))
-		{
-			int bp = 0, pp = 0;
-			// è¯»å–è¡Œå·
-			while(buf[bp] != ' ')
-			{
-				bp++;
-			}
-			line_idx = str2Num(buf.substr(pp, bp - pp));
-			
-			// è¯»å–Vt
-			pp = ++bp;
-			while(buf[bp] != ' ')
-			{
-				bp++;
-			}
-			Vt = buf.substr(pp, bp - pp);
-			// è¯»å–è¯æ€§
-			pp = ++bp;
-			while(buf[bp] != 0)
-			{
-				bp++;
-			}
-			type = buf.substr(pp, bp - pp);
-			// å¦‚æœVtæ˜¯å…³é”®å­—ï¼Œopï¼Œç•Œç¬¦ï¼Œé™å®šè¯ï¼Œåˆ™å°†åŸæ¥çš„ç¬¦å·æ‰”è¿›å»
-			if(type == "å…³é”®è¯"  || type == "ç•Œç¬¦")
-			{
-				if(Vt == "main")
+				if (first_c != 0)
 				{
-					if(have_main == true)
-					{
-						// 4å‡ºç°å¤šä¸ªmain
-						result = 4;
-					}
-					else
-					{
-						have_main = true;
-						result = parse_Vt("æ ‡è¯†ç¬¦", Vt, "æ ‡è¯†ç¬¦");
-					}
+					fss.push_back(first_c);
 				}
 				else
 				{
-					result = parse_Vt(Vt, Vt, type);
+					to_e = true;
 				}
 			}
-			else if(type == "æ ‡è¯†ç¬¦")
-			{
-				
-				result = parse_Vt(type, Vt, type);
-			}
-			else  if(type == "æ“ä½œç¬¦")
-			{
-				result = parse_Vt(Vt, Vt, type);
-			}
-			else  if(type == "å¸¸é‡" || type == "é™å®šç¬¦")// å¦‚æœæ˜¯å¸¸æ•° æ ‡è¯†ç¬¦ åˆ™æŠŠtypeæ‰”è¿›å»
-			{
-
-				result = parse_Vt(type, Vt, type);
-			}
-			else
-			{
-				result = 1;
-			}
-			
-			if(result == 2)
+			if (to_e == false)
 			{
 				break;
 			}
-			#ifdef _DEBUG_
-			cout << line_idx << "  " << result << endl;
-			for(auto & s:s_stack)
+		}
+		if (fss.size() == 0)
+		{
+			fss.push_back(vi[p].fs);
+		}
+		// ¶ÔVn×ó²¿µÄform f
+		for (auto f : form_map[vv])
+		{
+			for (auto first_c : fss)
 			{
-				cout << s;
+				item ti(f, 0, first_c);
+				if (chk.find(ti) == chk.end())
+				{
+					chk.insert(ti);
+					vi.push_back(ti);
+				}
+
 			}
-			puts("");
-			for(auto & v:V_stack)
+		}
+		p++;
+	}
+	bool flag = false;
+	if (fa != -1)
+	{
+		int i = 0;
+		for (i = 0; i < item_clan.size(); i++)
+		{
+			flag = false;
+			for (auto &j : item_clan[i])
 			{
-				cout << V_list[v];
+				if (chk.find(j) == chk.end())
+				{
+					flag = true;
+					break;
+				}
 			}
-			puts("\n");
-			#endif
+			if (flag == false)
+			{
+				return i;
+			}
+		}
+	}
+	item_clan.push_back(vi);
+	return item_clan.size() - 1;
+
+
+}
+
+// action¡ª¡ªgoto±íÓëÏîÄ¿¼¯×åÒ»Æğ²úÉú
+void sematic_parser::generate_clan()
+{
+	// ³õÊ¼»¯
+	item it0 = item(0, 0, 0);// <start>->.<S>, #¼ÓÈëÏîÄ¿¼¯
+	vector<item> vi{ it0 };
+	closure(vi, -1);
+	int p = 0;
+	while (p < item_clan.size())
+	{
+		go.push_back(map<int, int>{});
+		reverse.push_back(map<int, int>{});
+		// ÏÈµÃµ½¹æÔ¼
+		for (auto & f : item_clan[p])
+		{
+
+			if (f.p == form_list[f.f].right.size() || form_list[f.f].right[0] == 0)
+			{
+				(reverse[p])[f.fs] = f.f;
+			}
+		}
+		// ÔÙµÃµ½go
+		for (int i = 1; i < V_list.size(); i++)
+		{
+			vector<item> it;
+			vector<int> goi;
+			for (auto & f : item_clan[p])
+			{
+				if (f.p < form_list[f.f].right.size())
+				{
+					if (form_list[f.f].right[f.p] == i)
+					{
+						goi.push_back(i);
+						it.push_back(item(f.f, f.p + 1, f.fs));
+					}
+				}
+			}
+			if (it.size() > 0)
+			{
+				int dest = closure(it, p);
+				for (int j = 0; j < goi.size(); j++)
+				{
+					go[p][goi[j]] = dest;
+				}
+			}
+		}
+		p++;
+	}
+
+}
+
+void sematic_parser::parse_begin()
+{
+	a_stack.clear();
+	s_stack.clear();
+	V_stack.clear();
+	s_stack.push_back(0);
+	V_stack.push_back(0);
+	symbolTable.clear();
+
+}
+
+
+ //TODO: ²úÉúAST_NODE
+AST_node sematic_parser::deal_expression(int id_num, int form_idx) 
+{
+	vector<AST_node> rf = vector<AST_node>(a_stack.end() - id_num, a_stack.end());
+
+	 //½«±í´ïÊ½Êä³öÎª4ÔªÊ½
+	AST_node tast;
+	tast.line = line;
+	const form &tf = form_list[form_idx];
+	int opp = tf.ops.size(), varp = tf.var.size();
+	if(opp > 0)tast.type = tf.ops[0];
+	else tast.type = node_nop;
+
+	if (tast.type == node_func)
+	{
+		tast.name = rf[tf.var[1]].name;
+		tast.dType = ASTTree.tree[rf[tf.var[0]].op[0]].dType;
+		tast.syb = rf[tf.var[1]].syb;
+		tast.syb->vType = tast.dType;
+		tast.syb->hold_domain = symbolTable.prev_table;
+#ifdef _DEBUG_
+		//printf("%s type: %d \n", tast.name.c_str(), tast.dType);
+#endif // _DEBUG_
+		int fa = symbolTable.cur_table;
+		// ½«ĞÎ²Î±íÖĞµÄ±êÊ¶·û¼ÓÈë×ÓÁìÓò
+		// ÕâĞ©¶«Î÷Ğ´µÃÌØ±ğËÀ
+		AST_node tn = rf[tf.var[2]];
+		if (tn.op.size())
+		{
+			tn = ASTTree.tree[tn.op[0]];
+			while (1)
+			{
+				if (tn.op.size() == 3)
+				{
+					string& name = ASTTree.tree[tn.op[2]].name;
+					symbol & tsb = (*(symbolTable.local_tables[fa]))[name];
+					symbol & tsb2 = (*(symbolTable.local_tables[tast.syb->hold_domain]))[name] = tsb;
+					tsb.not_in = symbolTable.cur_table;
+					tsb2.is_declare = true;
+					tsb2.vType = ASTTree.tree[ASTTree.tree[tn.op[1]].op[0]].dType;
+					tn = ASTTree.tree[tn.op[0]];
+				}
+				else if (tn.op.size() == 2)
+				{
+					string& name = ASTTree.tree[tn.op[1]].name;
+					symbol & tsb = (*(symbolTable.local_tables[fa]))[name];
+					symbol & tsb2 = (*(symbolTable.local_tables[tast.syb->hold_domain]))[name] = tsb;
+					tsb.not_in = symbolTable.cur_table;
+					tsb2.is_declare = true;
+					tsb2.vType = ASTTree.tree[ASTTree.tree[tn.op[0]].op[0]].dType;
+#ifdef _DEBUG_
+					//printf("type trans : %d\n", tsb.vType);
+#endif // _DEBUG_
+					break;
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
+
+	}
+	// ÍêÈ«ÊÇÕë¶ÔÌØ¶¨ÎÄ·¨µÄÌØÅĞ£¬ÎŞÀ©Õ¹ĞÔ
+	if (tast.type == node_declare)
+	{
+		AST_node & tnn = rf[tf.var[1]];
+		// »ñµÃ²ÎÊıÀàĞÍ
+		valueType vt = ASTTree.tree[rf[tf.var[0]].op[0]].dType;
+		int sidx = tnn.op.back(), tidx=-1;
+		
+		while (1)
+		{
+			AST_node & iedt  = ASTTree.tree[ASTTree.tree[sidx].op.front()], 
+				& son = ASTTree.tree[sidx], tn;
+			if (tidx == -1) tn = tnn;
+			else tn = ASTTree.tree[tidx];
+			
+			symbol* tsb = iedt.syb;
+			// Èç¹ûÊÇÔÚÍâÃæµÄ·ûºÅ£¬È´ÊÇÀïÃæµÄÉêÃ÷
+			if (tsb->domain != symbolTable.cur_table)
+			{
+#ifdef _DEBUG_
+				//printf("outer declare: %s  \n", iedt.name.c_str());
+#endif // _DEBUG_
+				symbol sb = *tsb;
+				iedt.syb = symbolTable.add_symbol(iedt.name, sb, symbolTable.cur_table);
+			}
+			// ´¦Àí¿ÕÉêÃ÷µÄÇé¿ö
+			if (son.op.size() == 1)
+			{
+#ifdef _DEBUG_
+				puts("empty declare");
+#endif // _DEBUG_
+				son.type = node_assign;
+				AST_node an;
+				an.line = line;
+				if (vt == INT_TYPE)an.name = "0";
+				else if (vt == DOUBLE_TYPE)an.name = "0.0";
+				symbol sb = read_COSNT(an.name);
+				an.syb = symbolTable.add_symbol(an.name, sb);
+				an.dType = an.syb->vType; 
+				son.op.push_back(ASTTree.add_node(an));
+			}
+			if (tn.op.size() == 1)break;
+			tidx = tn.op[0];
+			sidx = ASTTree.tree[tidx].op.back();
+		}
+	}
+#ifdef _DEBUG_
+	//for (auto & m : symbolTable.local_tables)
+	//{
+	//	symbol_table & mp = *m;
+	//	printf("table size %d  ", mp.size());
+	//	for (auto & p : mp)
+	//	{
+	//		for (auto & t : ASTTree.tree)
+	//		{
+	//			if (t.syb == &p.second) {
+	//				printf("1_"); break;
+	//			}
+	//		}
+	//		printf("%s ", p.first.c_str());
+	//	}
+	//	puts("");
+	//}
+	//for (auto idx : tf.var)
+	//{	
+	//	if (rf[idx].syb)
+	//		cout << rf[idx].syb->data.ival << "  " ;
+	//	printf("tf.var %s  ", rf[idx].name);
+	//}
+	//puts("");
+#endif //_DEBUG_
+
+
+	for (auto idx : tf.var)
+	{
+		tast.op.push_back(ASTTree.add_node(rf[idx]));
+	}
+
+	return tast;
+}
+
+symbol sematic_parser::read_COSNT(const string & s)
+{
+	symbol sb;
+	sb.oType = CONSTANT;
+	int p = 0;
+	while(s[p] && s[p] != '.')p++;
+	if (!s[p])
+	{
+		sb.vType = INT_TYPE;
+		p = 0;
+		sb.data.ival = read_int(s, p);
+	}
+	else
+	{
+		sb.vType = DOUBLE_TYPE;
+		sb.data.dval = read_double(s, 0);
+	}
+	sb.is_declare = true;
+	return sb;
+}
+symbol sematic_parser::read_VARIABLE(const string & s)
+{
+	symbol sb;
+	sb.oType = VARIABLE;
+	return sb;
+}
+
+// TODO´¦Àíparse£¬1.²úÉú²ÎÊı±í 2.Óï·¨Ê÷ 3.ÌØÊâ´¦ÀíÄ³Ğ©ÊäÈë
+// ·ÖÎöĞòÁĞ ·µ»Ø´íÎóÀàĞÍ£¬»òÕß½ÓÊÜ -1³ÌĞò´íÎó 0½ÓÊÜ 1²»Ê¶±ğµÄVt 2¾Ü¾ø 3´¦ÀíÖĞ 4±êÊ¶·ûÀàĞÍ´íÎó
+int sematic_parser::parse_Vt(string  s, string Vt, string type)
+{
+
+
+	int idx = V_idx(s, false);
+	if (idx == V_list.size()) // Î´Ê¶±ğVt
+	{
+		return 1;
+	}
+	int back = s_stack.back();
+	// Èç¹ûÊÇ{ÔòĞèÒª¼ÓÉîÒ»²ãsymbol_table
+	if (Vt == "{")
+	{
+#ifdef _DEBUG_
+		//printf("{  %lld\n", symbolTable.cur_table);
+#endif // _DEBUG_
+		symbolTable.add_table(symbolTable.cur_table);
+	}
+	// ³ÌĞò¿É¶ÁĞÔ¼«²î
+	if (go[back].find(idx) != go[back].end()) // ×ªÒÆ
+	{
+		// ¼ÓÈësymbol_table
+		AST_node ta;
+		ta.line = line;
+		if (type == "³£Á¿")
+		{
+			symbol sb = read_COSNT(Vt);
+			ta.name = Vt;
+			ta.syb = symbolTable.add_symbol(Vt, sb);
+		}
+		else if (type == "±êÊ¶·û")
+		{
+			symbol sb = read_VARIABLE(Vt);
+			ta.name = Vt;
+			ta.syb = symbolTable.add_symbol(Vt, sb);
+#ifdef _DEBUG_
+			//if (ta.syb->domain != symbolTable.cur_table)printf("line %d | fron outer: %s\n", line, ta.name.c_str());
+#endif // _DEBUG_
 
 		}
-		// printf("111\n");
-		if(result != 3){
-			cout << "NO:\n line:"<<line_idx << "  "<<Vt<<endl;
-			printf("å¯èƒ½çš„é”™è¯¯: %sæˆ–%s\n", V_list[V_stack.back()].c_str(), Vt.c_str());
+		else if (Vt == "int") // ÔÚ×î³õ½«dtype¼ÓÉÏ
+		{
+			ta.dType = INT_TYPE;
 		}
-		else{
-			result = parse_Vt(end_s, end_s, "end_type");
-			if(result != 0){
-				cout << "NO:\n line:"<<line_idx << "  "<<Vt<<endl;
-			}
-			printf("YES!\n");
+		else if (Vt == "double")
+		{
+			ta.dType = DOUBLE_TYPE;
 		}
-		puts("quadra_tuple_list:");
-		print_quadra_tuple_list(quadra_tuple_list);
-		cout << endl;
+		else if (Vt == "void")
+		{
+			ta.dType = VOID_TYPE;
+		}
+		a_stack.push_back(ta);
+		V_stack.push_back(idx);
+		s_stack.push_back(go[back][idx]);
+		return 3;
+	}
+	else if (reverse[back].find(idx) != reverse[back].end()) // ¹æÔ¼
+	{
+
+
+		int form_idx = reverse[back][idx];
+		int cnt = form_list[form_idx].right.size();
+		// ÌØÅĞ¿Õ²úÉúÊ½
+		if (form_list[reverse[back][idx]].right[0] == 0)
+		{
+			cnt = 0;
+		}
+		AST_node tast = deal_expression(cnt, form_idx); 
+		while (cnt--)
+		{
+			a_stack.pop_back();
+			s_stack.pop_back();
+			V_stack.pop_back();
+		}
+		a_stack.push_back(tast);
+		V_stack.push_back(form_list[form_idx].left); 
+		if (V_stack.size() == 2 && V_stack.back() == 1)
+		{
+			return 0;
+		}
+		int tl = s_stack.size();
+		s_stack.push_back(go[s_stack[tl - 1]][form_list[form_idx].left]);
 #ifdef _DEBUG_
-		for(auto & s:s_stack)
+		//for (auto & s : s_stack)
+		//{
+		//	cout << s;
+		//}
+		//puts("");
+		//for (auto & v : V_stack)
+		//{
+		//	cout << V_list[v];
+		//}
+		//puts("\n");
+#endif
+		int ret = parse_Vt(s, Vt, type);
+		// ¹æÔ¼²»»áÏûºÄÏÂÒ»¸ö·ûºÅ
+		return ret;
+	}
+	else // ÊäÈë´íÎó£¬¾Ü¾ø½ÓÊÜ
+	{
+		return 2;
+	}
+	return -1;
+}
+
+// ¶ÁÈ¡TASK1µÄÊä³ö
+// TODO¸ø³ö´íÎóµÄÔ­Òò
+int sematic_parser::parse_code()
+{
+	string buf;
+	// ¿ªÊ¼´¦Àí£¬³õÊ¼»¯£¬¸Ğ¾õÓĞµãÀàËÆopenGL
+	parse_begin();
+	int result;
+	bool have_main = false;
+	int line_idx;
+	string type, Vt;
+	while (getline(f2, buf))
+	{
+		int bp = 0, pp = 0;
+		// ¶ÁÈ¡ĞĞºÅ
+		while (buf[bp] != ' ')
+		{
+			bp++;
+		}
+		line_idx = str2Num(buf.substr(pp, bp - pp));
+		line = line_idx;
+		// ¶ÁÈ¡Vt
+		pp = ++bp;
+		while (buf[bp] != ' ')
+		{
+			bp++;
+		}
+		Vt = buf.substr(pp, bp - pp);
+		// ¶ÁÈ¡´ÊĞÔ
+		pp = ++bp;
+		while (buf[bp] != 0)
+		{
+			bp++;
+		}
+		type = buf.substr(pp, bp - pp);
+		// Èç¹ûVtÊÇ¹Ø¼ü×Ö£¬op£¬½ç·û£¬ÏŞ¶¨´Ê£¬Ôò½«Ô­À´µÄ·ûºÅÈÓ½øÈ¥
+		if (type == "¹Ø¼ü´Ê" || type == "½ç·û")
+		{
+			if (Vt == "main")
+			{
+				if (have_main == true)
+				{
+					// 4³öÏÖ¶à¸ömain
+					result = 4;
+				}
+				else
+				{
+					have_main = true;
+					result = parse_Vt("±êÊ¶·û", Vt, "±êÊ¶·û");
+				}
+			}
+			else
+			{
+				result = parse_Vt(Vt, Vt, type);
+				if (Vt == "}")
+				{
+#ifdef _DEBUG_
+					//printf("} %lld, %lld\n", symbolTable.cur_table, symbolTable.fa[symbolTable.cur_table]);
+#endif // _DEBUG_
+
+					symbolTable.prev_table = symbolTable.cur_table;
+					symbolTable.cur_table = symbolTable.fa[symbolTable.cur_table];
+				}
+			}
+
+		}
+		else if (type == "±êÊ¶·û")
+		{
+			result = parse_Vt(type, Vt, type);
+		}
+		else  if (type == "²Ù×÷·û")
+		{
+			result = parse_Vt(Vt, Vt, type);
+
+		}
+		else  if (type == "³£Á¿" || type == "ÏŞ¶¨·û")// Èç¹ûÊÇ³£Êı ±êÊ¶·û Ôò°ÑtypeÈÓ½øÈ¥
+		{
+			result = parse_Vt(type, Vt, type);
+		}
+		else
+		{
+			result = 1;
+		}
+
+		if (result != 3)
+		{
+			if (result == 1)
+			{
+				printf("Î´Ê¶±ğµÄ·ûºÅ:%s\n", Vt.c_str());
+			}
+			break;
+		}
+#ifdef _DEBUG_
+		//cout << line_idx << "  " << result << endl;
+		//for (auto & m : symbolTable.local_tables)
+		//{
+		//	symbol_table & mp = *m;
+		//	printf("table size %d  ", mp.size());
+		//	for (auto & p : mp)
+		//	{
+		//		for (auto & t : ASTTree.tree)
+		//		{
+		//			if (t.syb == &p.second) {
+		//				printf("1_"); break;
+		//			}
+		//		}
+		//		printf("%s ", p.first.c_str());
+		//	}
+		//	puts("");
+		//}
+
+		for (auto & s : s_stack)
 		{
 			cout << s;
 		}
 		puts("");
-		for(auto & v:V_stack)
+		for (auto & v : V_stack)
 		{
 			cout << V_list[v];
 		}
 		puts("\n");
-		#endif
-		
-		// cout << result << endl;
-	}
+#endif
 
-	void end()
+	}
+	if (result != 3) 
 	{
-		f1.close();
-		f2.close();
-	}
-
-	int _add_const_var_leaf_(int val){
-		node tn = node(const_var, val);
-		tn.is_leaf = true;
-		int idx = _chk_in_dag_(tn);
-		if(idx == -1){
-			idx = dag.size();
-			dag.push_back(tn);
-		}
-		return idx;
-	}
-
-	int _chk_in_dag_(node n){
-		if(n.type == const_var){
-			for (int i = 0; i < dag.size(); i++){
-				if(dag[i].type == const_var && dag[i].val == n.val){
-					return i;
-				}
+		cout << "NO:\nline:" << line_idx << "  " << Vt << endl;
+		if (result != 1) 
+		{
+			if (result == 4)
+			{
+				puts("¶à¸ömain");
 			}
+			printf("¿ÉÄÜµÄ´íÎó: %s»ò%s\n", V_list[V_stack.back()].c_str(), Vt.c_str());
 		}
-		// å¦‚æœæ˜¯å˜é‡çš„è¯ ç›´æ¥å¿½ç•¥
+		
+	}
+	else {
+		result = parse_Vt(end_s, end_s, "end_type");
+		if (result != 0) 
+		{
+			cout << "NO:\nline:" << line_idx << "  " << Vt << endl;
+		}
+		else
+		{
+			printf("YES!\n");
+		}
+		
+	}
+
+	cout << endl;
+	
+#ifdef _DEBUG_
+	//for (auto & s : s_stack)
+	//{
+	//	cout << s;
+	//}
+	//puts("");
+	//for (auto & v : V_stack)
+	//{
+	//	cout << V_list[v];
+	//}
+	//puts("\n");
+#endif
+	// cout << result << endl;
+	return result;
+}
+
+// ²úÉúTACµÄ¹ı³Ì¼«¶È±©Á¦
+// TODO DEBUG dsf_AST
+int sematic_parser::dfs_AST(int idx)
+{
+#ifdef _DEBUG_
+	//printf("dfs_ast: idx: %d\n", idx);
+#endif // _DEBUG_
+
+	AST_node & tn = ASTTree.tree[idx];
+
+
+	int ret_flag = 0;
+	if (tn.type == node_declare)
+	{
+		valueType vt = ASTTree.tree[ASTTree.tree[tn.op[0]].op[0]].dType;
+#ifdef _DEBUG_
+		//printf("declare_type: %d\n", vt);
+#endif // _DEBUG_
+		ret_flag = AST_node::get_declared(tn, vt, ASTTree.tree);
+	}
+	// ±éÀú×ÓÊ÷
+	if (!ret_flag)
+	{
+		for (auto to : tn.op)
+		{
+			ret_flag = dfs_AST(to);
+			if (ret_flag)break;
+		}
+		// Èç¹ûsyb²»Îª¿Õ
+		tn.call(ASTTree.tree);
+	}
+	
+
+
+	return ret_flag;
+}
+
+
+
+// ½«³éÏóÓï·¨Ê÷×ª»¯ÎªËÄÔªÊ½
+int sematic_parser::AST2TAC()
+{
+	int mp = ASTTree.tree.size() - 1, cnt = 0, ret = 0;
+	vector<int> output_stack;
+	// ÕÒµ½mainº¯ÊıÈë¿Ú
+	for(;mp > -1; mp--)
+	{ 
+
+#ifdef _DEBUG_
+		//if (ASTTree.tree[mp].name.size())
+		//	printf("%d %s %d\n", mp, ASTTree.tree[mp].name.c_str(), ASTTree.tree[mp].type);
+#endif // _DEBUG_
+		//if (ASTTree.tree[mp].name == "main" && ASTTree.tree[mp].type == node_func)break;
+		if (ASTTree.tree[mp].name == "main" && ASTTree.tree[mp].type == node_func)
+		{
+			cnt++;
+		}
+		if (!ASTTree.tree[mp].is_called)
+		{
+			output_stack.push_back(mp);
+			ret = dfs_AST(mp);
+			//if (ret) break;
+			//ASTTree.tree[mp].show_code();
+		}
+	}
+	//if(!ret)
+	for (int i = output_stack.size() - 1; i >=0; i--)
+	{
+		ASTTree.tree[output_stack[i]].show_code(); puts("");
+	}
+#ifdef _DEBUG_
+	//printf("tree size %d\n", ASTTree.tree.size());
+	//printf("ASTTree.tree[%d].name %s\n", mp, ASTTree.tree[mp].name.c_str());
+
+	//for (auto & m : symbolTable.local_tables)
+	//{
+	//	symbol_table & mp = *m;
+	//	printf("table size %d  ", mp.size());
+	//	for (auto & p : mp)
+	//	{
+	//		//for (auto & t : ASTTree.tree)
+	//		//{
+	//		//	if (t.syb == &p.second) {
+	//		//		printf("1_"); break;
+	//		//	}
+	//		//}
+	//		printf("%s ", p.first.c_str());
+	//	}
+	//	puts("");
+	//}
+	//assert(mp != ASTTree.tree.size());
+#endif // _DEBUG_
+
+	//if (mp == ASTTree.tree.size())
+	//{
+	//	ret = dfs_AST(mp);
+	//	ASTTree.tree[mp].show_code();
+	//}
+	if(!cnt)
+	{
+		puts("È±ÉÙmainº¯Êı×÷ÎªÈë¿Ú");
 		return -1;
-	}	
-
-	int _add_ident_leaf(int idx){
-		int ret = -1;
-		if(id2node.find(idx) == id2node.end()){// æ˜¯ä¹‹å‰æ²¡æœ‰å‡ºç°è¿‡çš„å˜é‡
-			id2node[idx] = ret = dag.size();
-			node tn = node(ident, enum_assign, idx);
-			tn.is_leaf = true;
-			dag.push_back(tn);
-		}
-		else{
-			ret = id2node[idx];
-		}
-		return ret;
 	}
-
-	int _add_ident_node_(node n){
-		int idx = 0;
-		for(auto & tn : dag){
-			if(tn.come_op == n.come_op && tn.op1 == n.op1 && tn.op2 == n.op2){
-				break;
-			}
-			idx++;
-		}
-		if(idx == dag.size()){
-			n.is_leaf = false;
-			dag.push_back(n);
-			if(n.op1 != -1)dag[n.op1].to.push_back(idx); // åŠ å…¥toï¼Œæ–¹ä¾¿ä¹‹åçš„æ‹“æ‰‘æ’åº
-			if(n.op2 != -1)dag[n.op2].to.push_back(idx);
-		}
-		return idx;
+	else if (cnt > 1)
+	{
+		puts("´æÔÚ¶à¸ömainº¯Êı×÷ÎªÈë¿Ú");
 	}
-
-	void _optim_assign_(const quadra_tuple & q){
-		int idx1 = id_table[q.op1].type == ident ? _add_ident_leaf(q.op1) : 
-										_add_const_var_leaf_(id_table[q.op1].val);
-		id2node[q.op2] = idx1;
-	}
-
-	void _optim_op_(const quadra_tuple & q){
-		int idx1 = id_table[q.op1].type == ident ? _add_ident_leaf(q.op1) : 
-										_add_const_var_leaf_(id_table[q.op1].val)
-		, idx2 = id_table[q.op1].type == ident ? _add_ident_leaf(q.op2) : 
-										_add_const_var_leaf_(id_table[q.op2].val);
-	if(dag[idx1].type == const_var && dag[idx2].type == const_var){ 
-			//å¦‚æœop1å’Œop2éƒ½æ˜¯å¸¸é‡, dstä¸€å®šæ˜¯å˜é‡ï¼Œæ‰€ä»¥ç›´æ¥æ‹‰åˆ°addçš„ç»“æœèŠ‚ç‚¹ä¸Š
-			int val;
-			if(q.func == enum_add)val = dag[idx1].val + dag[idx2].val;
-			else if(q.func == enum_sub)val = dag[idx1].val - dag[idx2].val;
-			else if(q.func == enum_mul)val = dag[idx1].val * dag[idx2].val;
-			else val = dag[idx1].val / dag[idx2].val;
-			int dst = _add_const_var_leaf_(val);
-			id2node[q.dst] = dst;
-		}
-		else{
-			node tn = node(ident, q.func, idx1, idx2);
-			int idx2 = _add_ident_node_(tn);
-			id2node[q.dst] = idx2; // å°†dståŠ å…¥æ˜ å°„
-		}
-	}
-	
-	void _optim_print_(const quadra_tuple & q){
-		// æ— éœ€ä¼˜åŒ–ï¼Œç›´æ¥åŠ å…¥å³å¯
-		int idx1 = id_table[q.op1].type == ident ? _add_ident_leaf(q.op1) : 
-													_add_const_var_leaf_(id_table[q.op1].val);
-		node tn = node(ident, enum_print, idx1);
-		_add_ident_node_(tn);
-	}
-
-// ä¼˜åŒ–å‡½æ•°(main)
-	void optim(){
-		for (int i = 0; i < quadra_tuple_list.size(); i++){
-			switch(quadra_tuple_list[i].func){
-				case enum_assign:
-					_optim_assign_(quadra_tuple_list[i]);
-					break;
-				case enum_add:
-				case enum_sub:
-				case enum_mul:
-				case enum_div:
-					_optim_op_(quadra_tuple_list[i]);
-					break;
-				case enum_print:
-					_optim_print_(quadra_tuple_list[i]);
-					break;
-			}
-		}
-		gen_optimized_quadra_tuple_list();
-	}
-
-	int add_const_id(int val){
-		string name = num2str(val);
-		int ret = add_id(name, const_var);
-		return ret == -1 ? id_table.size() - 1 : ret;
-	}
-
-	inline string num2str(int num){
-		string temp;
-		stringstream ss;
-		ss << num;
-		ss >> temp;
-		return temp;
-	}
-
-	int get_node_id(int node_idx,  vector<vector<int>> & node2id){// æŸ¥è¯¢idxå·nodeå¯¹åº”çš„idçš„å€¼
-		int ret = -1;
-		if(node2id[node_idx].size() == 0){// å¦‚æœè¯¥èŠ‚ç‚¹è¿˜æ²¡æœ‰åŠ å…¥id_table, åˆ™åŠ å…¥,è€Œä¸”è¿™ä¸€å®šæ˜¯const_var
-			if(dag[node_idx].type == const_var){
-				ret = add_const_id(dag[node_idx].val);
-				node2id[node_idx].push_back(ret);
-			}
-			else{// å¶å­èŠ‚ç‚¹çš„æ ‡è¯†ç¬¦
-			//TODO è§£å†³å¶å­ç»“ç‚¹æ ‡è¯†ç¬¦çš„é—®é¢˜ï¼Œä»¥åŠtempæ ‡è¯†ç¬¦çš„é—®é¢˜
-				ret = dag[node_idx].op1;
-			}
-			node2id[node_idx].push_back(ret);
-		}
-		else {
-			// å¦‚æœæ˜¯å¸¸é‡ï¼Œåˆ™è¾“å‡ºå¸¸é‡
-			// è¿™ä¸ªå¸¸é‡è¿˜æ˜¯æ”¾åœ¨æœ€åä¸€ä¸ªçš„
-			// æ˜¯å˜é‡å‹èŠ‚ç‚¹, å°†æœ€åä¸€ä¸ªå–å‡ºæ¥å½“åšæ˜¯è¯¥èŠ‚ç‚¹çš„
-			//åˆå¹¶è¿™ä¸¤ç§æƒ…å†µå¾—
-			ret = node2id[node_idx].back();
-		}
-		return ret;
-	}
-
-	// å°†å•ä¸ªèŠ‚ç‚¹è½¬åŒ–ä¸º4å…ƒç»„
-	void node2quadra_tuple(int idx,  vector<vector<int>> & node2id){
-		const node &tn = dag[idx];
-		if(node2id[idx].size() == 0 && dag[idx].type == const_var){ // è¯¥èŠ‚ç‚¹æ²¡æœ‰æ ‡è¯†ç¬¦ï¼Œæ˜¯å¸¸é‡èŠ‚ç‚¹ï¼Œåˆ™ä¸ç®¡
-		}
-		else if(tn.type == const_var){ // å¦‚æœæ˜¯å¸¸é‡ä¸”æœ‰æ ‡è¯†ç¬¦çš„èŠ‚ç‚¹ï¼Œåˆ™å¯ä»¥è®¤ä¸ºæ˜¯èµ‹å€¼
-			int idx2 = add_const_id(tn.val);
-			for(auto i : node2id[idx]){
-				// é€šè¿‡èµ‹å€¼ï¼Œå°†æ ‡è¯†ç¬¦èµ‹å€¼
-				optimized_quadra_tuple_list.push_back(quadra_tuple(enum_assign, i, idx2));
-			}
-			node2id[idx].push_back(idx2);
-		}
-		// å¦‚æœæ˜¯éå¶å­ç»“ç‚¹çš„æ ‡è¯†ç¬¦
-		// else if(tn.is_leaf == false && tn.type == ident){
-		else if(tn.type == ident){
-			// è¿™é‡Œä¸ä¼šä¸ºä¸¤ä¸ªå¸¸é‡ï¼Œå› ä¸ºå¸¸é‡åœ¨ä¹‹å‰å·²è¿‘åˆå¹¶äº†
-			switch(tn.come_op){
-				case enum_add:
-				case enum_sub:
-				case enum_mul:
-				case enum_div:{
-					int node_idx1 = tn.op1, node_idx2 = tn.op2;
-					int op1 = get_node_id(node_idx1, node2id), op2 = get_node_id(node_idx2, node2id);
-					int dst = 0;
-					if(node2id[idx].size() == 0){
-						node2id[idx].push_back(add_temp()) ;
-					}
-					optimized_quadra_tuple_list.push_back(quadra_tuple(tn.come_op, op1, op2, node2id[idx][dst++]));// å°±ç¬¬ä¸€ä¸ªæ‰§è¡Œè¿ç®—ï¼Œå…¶ä»–å‡ä¸ºèµ‹å€¼æ“ä½œ
-					for (; dst < node2id[idx].size(); dst++){
-						optimized_quadra_tuple_list.push_back(quadra_tuple(enum_assign, node2id[idx][0], node2id[idx][dst++]));
-					}
-					break;
-				}
-				default: // æ²¡æœ‰æ“ä½œç¬¦çš„å°±æ˜¯å¤–æ¥çš„æ ‡è¯†ç¬¦
-				case enum_assign:{
-					// è¿™é‡Œè®¤ä¸ºä¸å¯èƒ½æ˜¯$tempï¼Œå› ä¸º$tempæ²¡æœ‰è¢«èµ‹å€¼è¿‡ï¼Œä¸èƒ½ä½œä¸ºå»ºç«‹nodeçš„åŸºç¡€
-					int op1 = tn.op1;
-					int op2 = 0;
-					for (; op2 < node2id[idx].size(); op2++){
-						if(node2id[idx][op2] !=  op1)
-						optimized_quadra_tuple_list.push_back(quadra_tuple(enum_assign, op1, node2id[idx][op2++]));
-					}					
-					break;
-				}
-				case enum_print:{
-					int op1 = get_node_id(tn.op1, node2id);
-					optimized_quadra_tuple_list.push_back(quadra_tuple(enum_print, op1));
-					break;
-				}
-			}
-		}
-	}
-
-	// TODOä¼˜åŒ–ä¹‹åä½¿ç”¨æ‹“æ‰‘æ’åºç›´æ¥è¾“å‡ºä¼˜åŒ–åçš„TAC
-	void gen_optimized_quadra_tuple_list(){
-		queue<int> que;
-		bool * vis = new bool[dag.size()];
-		vector<vector<int>>  node2id(dag.size());
-		Vn_reg_cnt = 0; // å€Ÿç”¨add_tempå‡½æ•°
-		for(auto i : id2node){
-			if(id_table[i.first].name[0] != '$')
-				node2id[i.second].push_back(i.first);
-		}
-		for(int i = 0; i < dag.size(); i++){
-			if(dag[i].is_leaf)que.push(i);
-			vis[i] = false;
-		}
-		while(que.empty() == false){
-			int idx = que.front();que.pop();
-			if(vis[idx])continue;
-			vis[idx] = true;
-			for(auto i : dag[idx].to){
-				if(vis[i] == false){
-					que.push(i);
-				}
-			}
-			node2quadra_tuple(idx, node2id);
-		}
-		puts("optimzed_quadra_tuple_list");
-		print_quadra_tuple_list(optimized_quadra_tuple_list);
-		delete []vis;
-	}
-
-
-};
-
-
-
-
-int main()
-{
-
-#ifdef m_
-	// freopen("output.txt","w",stdout);
-	// freopen("rjks/task1/token_grammar.txt", "r", stdin);
-	// freopen("input.txt","r",stdin);
-	freopen("output.txt","w",stdout);
-#endif
-	string file_path = "rjks/task3/sematic.txt";
-	// string file_path = "input.txt";
-	string code_path = "rjks/task3/token_list.txt";
-	syntax_parser sp(file_path, code_path);
-	clock_t t1, t2, t3, t4;
-	// t1 = clock();
-	sp.read_syntax();
-	// t2 = clock();
-	sp.generate_clan();
-	// t3 = clock();
-	// sp.output();
-	
-	sp.parse_code();
-	sp.optim();
-	// t4 = clock();
-	sp.output();
-	// sp.end();
-#ifdef m_
-	fclose(stdin);
-	fclose(stdout);
-#endif
-	return 0;
+#ifdef _DEBUG_
+	//puts("AST2TAC end");
+#endif // _DEBUG_
+	return ret;
 }
 
-vector<string> splitEx(const string &src, string separate_character)
-{
-	vector<string> strs;
 
-	int separate_characterLen = separate_character.size(); // åˆ†å‰²å­—ç¬¦ä¸²çš„é•¿åº¦,è¿™æ ·å°±å¯ä»¥æ”¯æŒå¦‚â€œ,,â€å¤šå­—ç¬¦ä¸²çš„åˆ†éš”ç¬¦
-	int lastPosition = 0, index = -1;
-	while (-1 != (index = src.find(separate_character, lastPosition)))
-    {
-		strs.push_back(src.substr(lastPosition, index - lastPosition));
-		lastPosition = index + separate_characterLen;
-	}
-	string lastString = src.substr(lastPosition); // æˆªå–æœ€åä¸€ä¸ªåˆ†éš”ç¬¦åçš„å†…å®¹
-	if (!lastString.empty())
-		strs.push_back(lastString); // å¦‚æœæœ€åä¸€ä¸ªåˆ†éš”ç¬¦åè¿˜æœ‰å†…å®¹å°±å…¥é˜Ÿ
-	return strs;
-}
+
+
+	
+	
+	
+	
+	
+	
+//
+//int main()
+//{
+//
+//#ifdef m_
+//	// freopen("output.txt","w",stdout);
+//	// freopen("rjks/task1/token_grammar.txt", "r", stdin);
+//	// freopen("input.txt","r",stdin);
+//	freopen("output.txt", "w", stdout);
+//#endif
+//	string file_path = "rjks/task3/sematic.txt";
+//	// string file_path = "input.txt";
+//	string code_path = "rjks/task3/token_list.txt";
+//	sematic_parser sp(file_path, code_path);
+//	clock_t t1, t2, t3, t4;
+//	// t1 = clock();
+//	sp.read_syntax();
+//	// t2 = clock();
+//	sp.generate_clan();
+//	// t3 = clock();
+//	// sp.output();
+//
+//	sp.parse_code();
+//	sp.optim();
+//	// t4 = clock();
+//	sp.output();
+//	// sp.end();
+//#ifdef m_
+//	fclose(stdin);
+//	fclose(stdout);
+//#endif
+//	return 0;
+//}
 

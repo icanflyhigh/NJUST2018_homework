@@ -1,13 +1,56 @@
-#include"iostream"
+#include<iostream>
 using namespace std;
-int main()
+int x= 1;
+int Fibonacci(int x)
 {
-    const double _b12=1e-5;
-    while(_b12 < 0)
-    {
-        int a05=int(.13);
-        double 12ab__= 013.24;
-        break;
-    }
-    return 0;
+	if(x)
+	{
+		int a = x - 1;
+		return x + Fibonacci(a);
+	}
+	return 0;
+}
+
+void foo()
+{
+int a= 1;
+}
+
+
+int main(int x)
+{
+// TODO ´¦Àí-5
+	x = foo(x);
+	foo(1, 2);
+	foo(a);
+	foo(a);
+	int _Saa =-566;
+	int a = 5, b =3;
+	int gg;
+	b=20;
+	gg = x;
+	int ss=235;
+	int cccc =a +b, eof=65535;
+	int q=1+cccc;
+	int nn =q+ b;
+	if(a + b)
+	{
+		a = a + 5;
+		a = a * (b + 1 * 5);
+		while(a + b > 11)
+		{
+			b=20;
+			int c =a +b;
+			int q=q+c;
+			int nn =q+ b;
+		}
+	}
+	while(a + b > 11)
+	{
+		b = 20;
+		int c =a +b;
+	}
+	double c = 20.0;
+	int d = a + b;
+	return 0;
 }
