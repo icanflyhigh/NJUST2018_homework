@@ -45,51 +45,11 @@ const map<string, node_type>  node_type_map = {
 	{{"declare"}, node_declare,},
 	{{"call"}, node_call},
 	{{"return"}, node_return},
+	{{"and"}, node_and},
 };
 
 
 
-
-
-enum id_type
-{
-	const_var, ident, type_other
-};
-
-enum operation
-{
-	// 主义排列顺序与atom_op的顺序相同，为了更好的映射
-	enum_print, enum_add, enum_sub, enum_mul, enum_div, enum_assign
-};
-
-
-
-// 返回s在atom_op中的标号
-inline int atom_op_idx(const string & s) {
-	for (int i = 0; i <= atom_op.size(); i++) {
-		if (atom_op[i] == s) {
-			return i;
-		}
-	}
-	return -1;
-}
-
-
-inline int property_idx(const string & s) {
-	for (int i = 0; i <= property.size(); i++) {
-		if (property[i] == s)return i;
-	}
-	return -1;
-}
-
-class quadra_tuple {
-public:
-	int  op1, op2, dst;
-	operation func;
-	quadra_tuple(operation to_func, int to_op1 = 0, int to_op2 = 0, int to_dst = 0) :
-		op1(to_op1), op2(to_op2), dst(to_dst), func(to_func) {}
-
-};
 
 class sematic_parser
 {
@@ -109,15 +69,6 @@ public:
 		vector<node_type> ops;// node操作的型号
 		vector<int> var;// 通过位置指示对应的元素在表达式的什么位置, -1 表示左式，自然数表示右式
 		form(int a, vector<int> b) :left(a), right(b) {}
-	};
-
-	// 分析栈中的元素
-	struct Identifier {
-		string name;
-		int val, addr, size, level;
-		id_type type;
-		Identifier(string a, int to_val = 0, id_type to_type = (id_type)0, int to_addr = 0, int to_size = 0, int to_level = 0) :
-			name(a), val(to_val), addr(to_addr), size(to_size), level(to_level), type(to_type) {}
 	};
 
 	struct item
@@ -145,17 +96,6 @@ public:
 		}
 	};
 
-	struct node {
-		id_type type;
-		int val, op1, op2;
-		bool is_leaf;
-		vector<int> to;
-		operation come_op;
-		node(id_type to_type, int to_val = 0) :
-			type(to_type), val(to_val) {}
-		node(id_type to_type, operation to_come_op, int to_op1 = -1, int to_op2 = -1, int to_val = 0) :
-			type(to_type), come_op(to_come_op), val(to_val), op1(to_op1), op2(to_op2) {}
-	};
 
 	// 参数区
 	ifstream f1;
@@ -172,25 +112,16 @@ public:
 	vector<map<int, int>> reverse;// 规约，第一个int表示符号，第二个表示规约的状态数
 	map<int, set<int>> first_set; // first集
 
-	// 处理token时会随着读取变化的变量
-	vector<quadra_tuple> quadra_tuple_list;
-	vector<Identifier> id_table; // 变量表
 	vector<int> s_stack; // 状态栈
 	vector<int> V_stack; // 符号栈
 	vector<AST_node> a_stack;
-	int Vn_reg_cnt = 0; // 给杂项分配id_table的计数器
+
 	//___________new______________
 	symtab symbolTable;
 	AST_tree ASTTree;
 
 
 
-	// 优化四元组用到的变量
-	vector<node> dag;
-	map<int, int> id2node;
-	int node_cnt;
-	vector<quadra_tuple> optimized_quadra_tuple_list;
-	int opt_temp_reg_cnt;
 
 	void output();
 
@@ -257,34 +188,5 @@ public:
 	int AST2TAC();// 将抽象语法树转化为四元式
 
 	int dfs_AST(int idx); // 遍历AST
-
-	int __nop__(AST_node &);
-
-
-	void end();
-
-	int _add_const_var_leaf_(int val);
-	int _chk_in_dag_(node n);
-	int _add_ident_leaf(int idx);
-	int _add_ident_node_(node n);
-	void _optim_assign_(const quadra_tuple & q);
-	void _optim_op_(const quadra_tuple & q);
-	void _optim_print_(const quadra_tuple & q);
-
-	// 优化函数(main)
-	void optim();
-
-	int add_const_id(int val);
-
-	inline string num2str(int num);
-
-	int get_node_id(int node_idx, vector<vector<int>> & node2id);
-
-	// 将单个节点转化为4元组
-	void node2quadra_tuple(int idx, vector<vector<int>> & node2id);
-
-	// TODO优化之后使用拓扑排序直接输出优化后的TAC
-	void gen_optimized_quadra_tuple_list();
-
-
+		
 };

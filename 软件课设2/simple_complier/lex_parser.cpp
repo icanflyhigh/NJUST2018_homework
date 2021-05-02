@@ -437,14 +437,14 @@ int All_lex_parser::judge_token(string sample)
 	return token_type;
 }
 
-void All_lex_parser::check_code(string file_path)
+int All_lex_parser::check_code(string file_path)
 {
 
 	ifstream f1;
 	f1.open(file_path, std::ios::in);
 	string buf;
 	int line_idx = 0;
-
+	int ret = 0;
 	while (getline(f1, buf))
 	{
 		line_idx++;
@@ -468,6 +468,7 @@ void All_lex_parser::check_code(string file_path)
 			while (true)
 			{
 				string sample = buf.substr(p1, p2 - p1 + 1);
+				string opgs = sample;
 				type = graddy_judge(sample);
 				// 如果之前的字符
 				int p3 = p2;
@@ -475,9 +476,7 @@ void All_lex_parser::check_code(string file_path)
 				{
 					sample = buf.substr(p2, 1);
 					type = graddy_judge(sample);
-#ifdef _DEBUG_
-					//printf("%s  type %d\n", sample.c_str(), type);
-#endif
+
 				}
 				int gj = graddy_judge(buf.substr(p2, 2));
 				if (buf[p2 + 1] != 0 && type == 1 && (gj == 1 || gj == 4)) { // 操作符特判，因为可能有2个字符的操作符
@@ -502,7 +501,7 @@ void All_lex_parser::check_code(string file_path)
 				}
 #ifdef _DEBUG_
 				//cout << buf[p2] << "  "; printf("type %d ", type);
-				//cout << tvflag[0] << "   " << tvflag[1] << endl;
+				printf("tvFlag %d  %d  Type: %d | ", tvflag[0], tvflag[1], type);
 #endif
 				if (type == 1 || type == 3 || type == 4)
 				{
@@ -525,14 +524,16 @@ void All_lex_parser::check_code(string file_path)
 #endif
 									fprintf(tokenf, "%d %s %s\n", line_idx, s1.c_str(), token_names[tt].c_str());
 								}
-
 							}
+
 							else
 							{
 #ifdef _DEBUG_
+
 								printf("%d %s %s 1\n", line_idx, s1.c_str(), "错误输入");
 #endif
 								fprintf(tokenf, "%d %s %s\n", line_idx, s1.c_str(), "错误输入");
+								ret = -1;
 							}
 						}
 						if (type != 4) {
@@ -549,6 +550,32 @@ void All_lex_parser::check_code(string file_path)
 							break;
 						}
 	
+					}
+				}
+				else if (type == -1 && !tvflag[0] && !tvflag[1] && (opgs[0] == '-' || opgs[0] == '+' || opgs[0] == '*' || opgs[0] == '/'))
+				{// 特判 +标识符 的情况
+					char tcs[3]{ opgs[0], '\0' };
+					p1 = p2;
+#ifdef _DEBUG_
+
+					printf("%d %s %s %s 4\n", line_idx, tcs, "操作符", opgs.c_str());
+#endif
+					fprintf(tokenf, "%d %s %s\n", line_idx, tcs, "操作符");
+
+					for (int i = 0; i < 2; i++)
+					{
+						if (tvflag[i])
+						{
+							int tn = tv[i].now_state;
+							if (tv[i].code_parse(buf[p2]))
+							{
+								tvflag[i] = true;
+							}
+							else
+							{
+								tvflag[i] = false;
+							}
+						}
 					}
 				}
 				p2++;
@@ -571,6 +598,7 @@ void All_lex_parser::check_code(string file_path)
 							printf("%d %s %s 3\n", line_idx, s1.c_str(), "错误输入");
 #endif
 							fprintf(tokenf, "%d %s %s\n", line_idx, s1.c_str(), "错误输入");
+							ret = -1;
 						}
 					}
 					if (buf[p2] == '/') {
@@ -588,6 +616,7 @@ void All_lex_parser::check_code(string file_path)
 		}
 	}
 	f1.close();
+	return ret;
 }
 
 All_lex_parser::~All_lex_parser(){

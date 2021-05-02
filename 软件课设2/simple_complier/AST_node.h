@@ -16,6 +16,8 @@ static int temp_node_cnt;
 	symData tempData;// 暂存数据
 	valueType dType;
 	symbol * syb = NULL;
+	int line=0;
+	bool is_called = false;
 	static int get_declared(AST_node& tn, valueType vt, vector<AST_node> & T, bool isleft=false);
 	int __function__(vector<AST_node> & T);
 	int __nop__(vector<AST_node> & T);
@@ -26,9 +28,12 @@ static int temp_node_cnt;
 	int __while__(vector<AST_node> & T);
 	int __return__(vector<AST_node> & T);
 	int __call__(vector<AST_node> & T);
-	void call(vector<AST_node>&);
+	int __and__(vector<AST_node> & T);
+	int zip_back(vector<AST_node> & T, int idx, string& false_tag); // 回填地址
+	int call(vector<AST_node>&);
 	bool type_check(vector<AST_node>&);
 
+	
 	void show_code();
 };
 

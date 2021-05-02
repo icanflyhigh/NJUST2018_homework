@@ -6,6 +6,12 @@
 int AST_node::temp_node_cnt = 0;
 int TAC::tag_cnt = 0;
 
+map<valueType, string> v2str{
+	{VOID_TYPE, "void"},
+	{INT_TYPE, "int"},
+	{DOUBLE_TYPE, "double"},
+
+};
 
 
 void AST_node::show_code()
@@ -27,7 +33,7 @@ int AST_node::get_declared(AST_node& tn, valueType vt, vector<AST_node> & T, boo
 #endif // _DEBUG_
 		if (tn.syb->is_declare) 
 		{ 
-			printf("重复声明%s。\n", tn.name.c_str());
+			printf("line: %d | 重复声明%s。\n", tn.line, tn.name.c_str());
 			tn.type = node_error; return -1;
 		}
 		else
@@ -70,7 +76,6 @@ int AST_node::__declare__(vector<AST_node> & T)
 	if (!type_check(T))
 	{
 		type = node_error;
-		printf("类型不匹配 %s\n", name.c_str());
 		return -1;
 	}	
 	dType = T[0].dType;
@@ -97,8 +102,15 @@ int AST_node::__if__(vector<AST_node> & T)
 	name = T[op[0]].name;
 	TAC c;
 	string false_tag = "tag: " + to_string(TAC::tag_cnt++);
+	zip_back(T, op[0], false_tag);
 	code.insert(code.end(), T[op[0]].code.begin(), T[op[0]].code.end());//if判断块
 
+#ifdef _DEBUG_
+	//printf("if show code\n");
+	//T[op[0]].show_code();
+#endif // _DEBUG_
+
+	
 	c.type = BEQ;
 	c.op.push_back(T[op[0]].name);
 	c.op.push_back("0");
@@ -127,12 +139,13 @@ int AST_node::__while__(vector<AST_node> & T)
 	TAC c;
 	string while_tag = "tag: " + to_string(TAC::tag_cnt++),
 		false_tag = "tag: " + to_string(TAC::tag_cnt++);
+	zip_back(T, op[0], false_tag);
 	c.type = TAG;
 	c.tag = while_tag;// if块内的入口
 	code.push_back(c);
-
+	
 	code.insert(code.end(), T[op[0]].code.begin(), T[op[0]].code.end());//if判断块
-
+	
 	c.type = BEQ;
 	c.op.push_back(T[op[0]].name);
 	c.op.push_back("0");
@@ -172,12 +185,17 @@ int AST_node::__return__(vector<AST_node>& T)
 int AST_node::__call__(vector<AST_node>& T)
 {
 	name = T[op[0]].name + to_string(temp_node_cnt++);
+	if (T[op[0]].syb && !T[op[0]].syb->is_declare)
+	{
+		printf("line: %d | 未申明的函数名 %s\n", line, T[op[0]].name.c_str());
+		return -1;
+	}
 	for (auto idx : op)
 	{
 		code.insert(code.end(),
 			T[idx].code.begin(), T[idx].code.end());
 	}
-	AST_node & tn = T[op[1]];
+	AST_node  tn = T[op[1]];
 	TAC c;
 	c.type = CALL;
 	c.op.push_back(name);
@@ -203,12 +221,56 @@ int AST_node::__call__(vector<AST_node>& T)
 	return 0;
 }
 
+int AST_node::__and__(vector<AST_node>& T)
+{
+	dType = T[op[0]].dType;
+	code.insert(code.end(),
+			T[op[0]].code.begin(), T[op[0]].code.end());
+	
+	if (!syb)name = "$" + to_string(temp_node_cnt++);
+	if (!type_check(T))
+	{
+		type = node_error;
+		return -1;
+	}
+	TAC c;
+	//c.type = AND;
+	//c.op.push_back(name);
+	//c.op.push_back(T[op[0]].name);
+	//c.op.push_back(T[op[1]].name);
+	//code.push_back(c);
+	c.type = BEQ;
+	//c.op.clear();
+	c.op.push_back(T[op[0]].name);
+	c.op.push_back("0");
+	//c.op.push_back(false_tag);等高一级来回填tag
+	code.push_back(c);
+	code.insert(code.end(),
+		T[op[1]].code.begin(), T[op[1]].code.end());
+#ifdef _DEBUG_
+	puts("c show");
+	printf("line: %d\n", line);
+	show_code();
+
+	puts("show end");
+#endif // _DEBUG_
 
 
+	return 0;
+}
 
+int AST_node::zip_back(vector<AST_node>& T, int idx, string & false_tag)
+{
+	AST_node & tn = T[idx];
+	if (tn.type != node_and)return 0;
+	for (auto & c : tn.code)
+	{
+		if (c.type == BEQ && c.op.size() < 3)c.op.push_back(false_tag);
+	}
+	//if (tn.op.size() == 2)zip_back(T, tn.op[0], false_tag);
 
-
-
+	return 0;
+}
 
 
 int AST_node::__cal_op__(vector<AST_node> & T, node_type nt)
@@ -222,7 +284,6 @@ int AST_node::__cal_op__(vector<AST_node> & T, node_type nt)
 	if (!type_check(T))
 	{
 		type = node_error;
-		puts("类型不匹配");
 		return -1;
 	}
 	TAC c;
@@ -232,7 +293,7 @@ int AST_node::__cal_op__(vector<AST_node> & T, node_type nt)
 	else if (nt == node_div) c.type = DIV;
 	else if (nt == node_greater) c.type = GREATER;
 #ifdef _DEBUG_
-	else { puts("程序错误"); return -100; }
+	else { puts("程序错误, 错误的操作符"); return -100; }
 #endif // _DEBUG_
 	c.op.push_back(name);
 	c.op.push_back(T[op[0]].name);
@@ -274,7 +335,6 @@ int AST_node::__assign__(vector<AST_node>& T)
 	if (!type_check(T))
 	{
 		type = node_error;
-		puts("类型不匹配");
 		return -1;
 	}
 	TAC c;
@@ -282,63 +342,68 @@ int AST_node::__assign__(vector<AST_node>& T)
 	c.op.push_back(T[op[0]].name);
 	c.op.push_back(T[op[1]].name);
 	code.push_back(c);
-	c.op[0] = name;
+	//c.op[0] = name;
 	// 加入自己的assign
-	code.push_back(c);
+	//code.push_back(c);
 	return 0;
 }
 
 // 访问该节点产生TAC
-void AST_node::call(vector<AST_node> & T)
+int AST_node::call(vector<AST_node> & T)
 {
 	// 第一步都是将op的代码合在一起
 #ifdef _DEBUG_
 	//printf("%d\n", type);
 #endif // _DEBUG_
-
+	is_called = true;
 	if (op.size())
 		dType = !T[op[0]].syb ? T[op[0]].dType :
 		T[op[0]].syb->vType;
 	else if (syb) dType = syb->vType;
-
+	int ret = -1;
 	switch (type)
 	{
 	case node_nop:
-		__nop__(T);
+		ret = __nop__(T);
 		break;
 	case node_assign:
-		__assign__(T);
+		ret = __assign__(T);
 		break;
 	case node_greater:
 	case node_add:
 	case node_sub:
 	case node_mul:
 	case node_div:
-		__cal_op__(T, type);
+		ret = __cal_op__(T, type);
 		break;
 	case node_if:
-		__if__(T);
+		ret = __if__(T);
 		break;
 	case node_while:
-		__while__(T);
+		ret = __while__(T);
 		break;
 	case node_declare:
-		__declare__(T);
+		ret = __declare__(T);
 		break;
 	case node_func:
-		__function__(T);
+		ret = __function__(T);
 		break;
 	case node_error:
 		puts("ERROR NODE");
 		break;
 	case node_return:
-		__return__(T);
+		ret = __return__(T);
 		break;
 	case node_call:
-		__call__(T);
+		ret = __call__(T);
+		break;
+	case node_and:
+		ret = __and__(T);
+		break;
 	default:
 		break;
 	}
+	return ret;
 //#ifdef _DEBUG_
 //	puts("call end");
 //	printf("%d\n", syb->vType);
@@ -357,21 +422,33 @@ bool AST_node::type_check(vector<AST_node>& T)
 		 vt = !T[op[0]].syb ? T[op[0]].dType :
 			T[op[0]].syb->vType;
 		 nm = T[op[0]].name;
+		 if (T[op[0]].syb && !T[op[0]].syb->is_declare || T[op[0]].dType < 0 || T[op[0]].dType > max_node_type)
+		 {
+#ifdef _DEBUG_
+			printf("error type: %d  ", T[op[0]].type );
+#endif // _DEBUG_
+			printf("line: %d | %s 未申明标识符\n", line, T[op[0]].name.c_str());
+			return false;
+		 }
 	}
 	for (size_t i = 1; i < op.size(); i++)
 	{
 		valueType vit = !T[op[i]].syb ? T[op[i]].dType :
 			T[op[i]].syb->vType;
+		if (T[op[i]].syb && !T[op[i]].syb->is_declare || T[op[i]].dType < 0 || T[op[i]].dType > max_node_type)
+		{
+			printf("line: %d | %s 未申明标识符\n", line, T[op[i]].name.c_str());
+			return false;
+		}
 		if (vit != vt)
 		{
-
-			printf("%s type:%d  %s type:%d ", nm.c_str(),vt,  T[op[i]].name.c_str(), vit);
+			printf("line: %d | %s type:%s  %s type:%s ", line, nm.c_str(), v2str[vt],  T[op[i]].name.c_str(), v2str[vit]);
+			printf("类型不匹配\n");
 			return false;
 		}
 	}
 	return true;
 }
-
 
 int AST_tree::add_node(AST_node & node)
 {
@@ -379,5 +456,7 @@ int AST_tree::add_node(AST_node & node)
 	tree.push_back(node);
 	return ret;
 }
+
+
 
 

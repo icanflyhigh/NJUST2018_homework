@@ -27,7 +27,7 @@
 #include <cassert>
 // TODO将所有的include整理到这里
 
-#define _DEBUG_
+//#define _DEBUG_
 
 
 constexpr auto MAX_SYMBOL_NUM = 10000;        // 最大symbol数
@@ -70,7 +70,8 @@ struct symbol {
 	objectType oType;
 	valueType vType;
 	symData data;
-	bool is_declare = false, not_in=-1;
+	bool is_declare = false;
+	int not_in=-1;
 	int domain, hold_domain; // 所在的参数表, 自身拥有的参数表
 	int level; // 所在参数表的层数
 	int parameter;
@@ -88,7 +89,7 @@ typedef map<string, symbol> symbol_table;
 
 //typedef map<string, string> allocationTable;
 
-
+const int max_node_type = 17;
 //AST
 enum node_type {
 	node_nop,
@@ -128,6 +129,7 @@ enum func
 	TAG,
 	CALL,
 	RETURN,
+	AND,
 };
 
 

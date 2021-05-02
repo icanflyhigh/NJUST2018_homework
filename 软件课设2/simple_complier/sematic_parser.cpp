@@ -6,7 +6,7 @@
 /*
 语义分析器
 */
-
+int line=0;
 void sematic_parser::test()
 {
 	read_syntax();
@@ -22,48 +22,6 @@ sematic_parser::sematic_parser(string syntax_path, string code_path)
 	f1.open(syntax_path, std::ios::in);
 	f2.open(code_path, std::ios::in);
 }
-
-//
-//void sematic_parser::_print_quadra_tuple_(const quadra_tuple  & q) {
-//	switch (q.func) {
-//	case enum_add:
-//		printf("%s %s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(),
-//			id_table[q.op2].name.c_str(), id_table[q.dst].name.c_str());
-//		break;
-//	case enum_sub:
-//		printf("%s %s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(),
-//			id_table[q.op2].name.c_str(), id_table[q.dst].name.c_str());
-//		break;
-//	case enum_mul:
-//		printf("%s %s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(),
-//			id_table[q.op2].name.c_str(), id_table[q.dst].name.c_str());
-//		break;
-//	case enum_div:
-//		printf("%s %s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(),
-//			id_table[q.op2].name.c_str(), id_table[q.dst].name.c_str());
-//		break;
-//	case enum_assign:
-//		printf("%s %s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str(),
-//			id_table[q.op2].name.c_str());
-//		break;
-//	case enum_print:
-//		printf("%s %s\n", atom_op[(int)q.func].c_str(), id_table[q.op1].name.c_str());
-//		break;
-//	}
-//
-//}
-//
-//struct node {
-//	id_type type;
-//	int val, op1, op2;
-//	bool is_leaf;
-//	vector<int> to;
-//	operation come_op;
-//	node(id_type to_type, int to_val = 0) :
-//		type(to_type), val(to_val) {}
-//	node(id_type to_type, operation to_come_op, int to_op1 = -1, int to_op2 = -1, int to_val = 0) :
-//		type(to_type), come_op(to_come_op), val(to_val), op1(to_op1), op2(to_op2) {}
-//};
 
 void sematic_parser::output()
 {
@@ -168,20 +126,7 @@ void sematic_parser::output()
 		cout << endl;
 	}
 
-	puts("DAG");
-	int i = 0;
-	for (auto &n : dag) {
-		printf("[%d]", i);
-		cout << "type:" << (n.type >= 0 && n.type <= 3 ? (id_type)n.type : -1) << "  come_op:" << n.come_op;
-		printf(" is_leaf: %d, op1: %d, op2: %d, val: %d\n", (int)n.is_leaf, n.op1, n.op2, n.val);
-		i++;
-	}
-	cout << endl;
 
-	puts("id2node");
-	for (auto i : id2node) {
-		printf("[%d] -> %d\n", i.first, i.second);
-	}
 
 	cout << endl;
 }
@@ -521,7 +466,6 @@ void sematic_parser::gen_first()
 		first_set[i] = temp;
 
 	}
-
 }
 
 // 求项目集
@@ -700,6 +644,7 @@ AST_node sematic_parser::deal_expression(int id_num, int form_idx)
 
 	 //将表达式输出为4元式
 	AST_node tast;
+	tast.line = line;
 	const form &tf = form_list[form_idx];
 	int opp = tf.ops.size(), varp = tf.var.size();
 	if(opp > 0)tast.type = tf.ops[0];
@@ -707,11 +652,11 @@ AST_node sematic_parser::deal_expression(int id_num, int form_idx)
 
 	if (tast.type == node_func)
 	{
-
 		tast.name = rf[tf.var[1]].name;
 		tast.dType = ASTTree.tree[rf[tf.var[0]].op[0]].dType;
 		tast.syb = rf[tf.var[1]].syb;
 		tast.syb->vType = tast.dType;
+		tast.syb->is_declare = true;
 		tast.syb->hold_domain = symbolTable.prev_table;
 #ifdef _DEBUG_
 		//printf("%s type: %d \n", tast.name.c_str(), tast.dType);
@@ -719,7 +664,7 @@ AST_node sematic_parser::deal_expression(int id_num, int form_idx)
 		int fa = symbolTable.cur_table;
 		// 将形参表中的标识符加入子领域
 		// 这些东西写得特别死
-		AST_node& tn = rf[tf.var[2]];
+		AST_node tn = rf[tf.var[2]];
 		if (tn.op.size())
 		{
 			tn = ASTTree.tree[tn.op[0]];
@@ -729,21 +674,20 @@ AST_node sematic_parser::deal_expression(int id_num, int form_idx)
 				{
 					string& name = ASTTree.tree[tn.op[2]].name;
 					symbol & tsb = (*(symbolTable.local_tables[fa]))[name];
-					(*(symbolTable.local_tables[tast.syb->hold_domain]))[name] = tsb;
+					symbol & tsb2 = (*(symbolTable.local_tables[tast.syb->hold_domain]))[name] = tsb;
 					tsb.not_in = symbolTable.cur_table;
-					tsb.is_declare = true;
-					tsb.vType = ASTTree.tree[ASTTree.tree[tn.op[1]].op[0]].dType;
+					tsb2.is_declare = true;
+					tsb2.vType = ASTTree.tree[ASTTree.tree[tn.op[1]].op[0]].dType;
 					tn = ASTTree.tree[tn.op[0]];
 				}
 				else if (tn.op.size() == 2)
 				{
-					
 					string& name = ASTTree.tree[tn.op[1]].name;
 					symbol & tsb = (*(symbolTable.local_tables[fa]))[name];
-					(*(symbolTable.local_tables[tast.syb->hold_domain]))[name] = tsb;
+					symbol & tsb2 = (*(symbolTable.local_tables[tast.syb->hold_domain]))[name] = tsb;
 					tsb.not_in = symbolTable.cur_table;
-					tsb.is_declare = true;
-					tsb.vType = ASTTree.tree[ASTTree.tree[tn.op[0]].op[0]].dType; 
+					tsb2.is_declare = true;
+					tsb2.vType = ASTTree.tree[ASTTree.tree[tn.op[0]].op[0]].dType;
 #ifdef _DEBUG_
 					//printf("type trans : %d\n", tsb.vType);
 #endif // _DEBUG_
@@ -756,6 +700,52 @@ AST_node sematic_parser::deal_expression(int id_num, int form_idx)
 			}
 		}
 
+	}
+	// 完全是针对特定文法的特判，无扩展性
+	if (tast.type == node_declare)
+	{
+		AST_node & tnn = rf[tf.var[1]];
+		// 获得参数类型
+		valueType vt = ASTTree.tree[rf[tf.var[0]].op[0]].dType;
+		int sidx = tnn.op.back(), tidx=-1;
+		
+		while (1)
+		{
+			AST_node & iedt  = ASTTree.tree[ASTTree.tree[sidx].op.front()], 
+				& son = ASTTree.tree[sidx], tn;
+			if (tidx == -1) tn = tnn;
+			else tn = ASTTree.tree[tidx];
+			
+			symbol* tsb = iedt.syb;
+			// 如果是在外面的符号，却是里面的申明
+			if (tsb->domain != symbolTable.cur_table)
+			{
+#ifdef _DEBUG_
+				//printf("outer declare: %s  \n", iedt.name.c_str());
+#endif // _DEBUG_
+				symbol sb = *tsb;
+				iedt.syb = symbolTable.add_symbol(iedt.name, sb, symbolTable.cur_table);
+			}
+			// 处理空申明的情况
+			if (son.op.size() == 1 && son.type == node_nop)
+			{
+#ifdef _DEBUG_
+				puts("empty declare");
+#endif // _DEBUG_
+				son.type = node_assign;
+				AST_node an;
+				an.line = line;
+				if (vt == INT_TYPE)an.name = "0";
+				else if (vt == DOUBLE_TYPE)an.name = "0.0";
+				symbol sb = read_COSNT(an.name);
+				an.syb = symbolTable.add_symbol(an.name, sb);
+				an.dType = an.syb->vType; 
+				son.op.push_back(ASTTree.add_node(an));
+			}
+			if (tn.op.size() == 1)break;
+			tidx = tn.op[0];
+			sidx = ASTTree.tree[tidx].op.back();
+		}
 	}
 #ifdef _DEBUG_
 	//for (auto & m : symbolTable.local_tables)
@@ -809,7 +799,7 @@ symbol sematic_parser::read_COSNT(const string & s)
 		sb.vType = DOUBLE_TYPE;
 		sb.data.dval = read_double(s, 0);
 	}
-
+	sb.is_declare = true;
 	return sb;
 }
 symbol sematic_parser::read_VARIABLE(const string & s)
@@ -842,9 +832,9 @@ int sematic_parser::parse_Vt(string  s, string Vt, string type)
 	// 程序可读性极差
 	if (go[back].find(idx) != go[back].end()) // 转移
 	{
-		
 		// 加入symbol_table
 		AST_node ta;
+		ta.line = line;
 		if (type == "常量")
 		{
 			symbol sb = read_COSNT(Vt);
@@ -856,6 +846,10 @@ int sematic_parser::parse_Vt(string  s, string Vt, string type)
 			symbol sb = read_VARIABLE(Vt);
 			ta.name = Vt;
 			ta.syb = symbolTable.add_symbol(Vt, sb);
+#ifdef _DEBUG_
+			//if (ta.syb->domain != symbolTable.cur_table)printf("line %d | fron outer: %s\n", line, ta.name.c_str());
+#endif // _DEBUG_
+
 		}
 		else if (Vt == "int") // 在最初将dtype加上
 		{
@@ -943,7 +937,7 @@ int sematic_parser::parse_code()
 			bp++;
 		}
 		line_idx = str2Num(buf.substr(pp, bp - pp));
-
+		line = line_idx;
 		// 读取Vt
 		pp = ++bp;
 		while (buf[bp] != ' ')
@@ -1016,6 +1010,23 @@ int sematic_parser::parse_code()
 			break;
 		}
 #ifdef _DEBUG_
+
+		//for (auto & m : symbolTable.local_tables)
+		//{
+		//	symbol_table & mp = *m;
+		//	printf("table size %d  ", mp.size());
+		//	for (auto & p : mp)
+		//	{
+		//		for (auto & t : ASTTree.tree)
+		//		{
+		//			if (t.syb == &p.second) {
+		//				printf("1_"); break;
+		//			}
+		//		}
+		//		printf("%s ", p.first.c_str());
+		//	}
+		//	puts("");
+		//}
 		//cout << line_idx << "  " << result << endl;
 		//for (auto & s : s_stack)
 		//{
@@ -1030,7 +1041,6 @@ int sematic_parser::parse_code()
 #endif
 
 	}
-	// printf("111\n");
 	if (result != 3) 
 	{
 		cout << "NO:\nline:" << line_idx << "  " << Vt << endl;
@@ -1104,11 +1114,9 @@ int sematic_parser::dfs_AST(int idx)
 			if (ret_flag)break;
 		}
 		// 如果syb不为空
-		tn.call(ASTTree.tree);
+		if(!ret_flag)
+		ret_flag = tn.call(ASTTree.tree);
 	}
-	
-
-
 	return ret_flag;
 }
 
@@ -1117,9 +1125,10 @@ int sematic_parser::dfs_AST(int idx)
 // 将抽象语法树转化为四元式
 int sematic_parser::AST2TAC()
 {
-	int mp = 0, cnt = 0, ret = 0;
+	int mp = ASTTree.tree.size() - 1, cnt = 0, ret = 0;
+	vector<int> output_stack;
 	// 找到main函数入口
-	for(;mp < ASTTree.tree.size(); mp++)
+	for(;mp > -1; mp--)
 	{ 
 
 #ifdef _DEBUG_
@@ -1127,18 +1136,39 @@ int sematic_parser::AST2TAC()
 		//	printf("%d %s %d\n", mp, ASTTree.tree[mp].name.c_str(), ASTTree.tree[mp].type);
 #endif // _DEBUG_
 		//if (ASTTree.tree[mp].name == "main" && ASTTree.tree[mp].type == node_func)break;
-		if (ASTTree.tree[mp].type == node_func)
+		if (ASTTree.tree[mp].name == "main" && ASTTree.tree[mp].type == node_func)
 		{
-			if (ASTTree.tree[mp].name == "main")
-			{
-				cnt++;
-			}
+			cnt++;
+		}
+		if (!ASTTree.tree[mp].is_called)
+		{
+			output_stack.push_back(mp);
 			ret = dfs_AST(mp);
-			ASTTree.tree[mp].show_code();
+			if (ret) break;
+			//ASTTree.tree[mp].show_code();
+		}
+	}
+	if (!ret)
+	{
+		if (!cnt && !ret)
+		{
+			puts("缺少main函数作为入口");
+			return -1;
+		}
+		else if (cnt > 1 && !ret)
+		{
+			puts("存在多个main函数作为入口");
+		}
+		else
+		{
+			for (int i = output_stack.size() - 1; i >= 0; i--)
+			{
+				ASTTree.tree[output_stack[i]].show_code(); puts("");
+			}
 		}
 
 	}
-
+	
 #ifdef _DEBUG_
 	//printf("tree size %d\n", ASTTree.tree.size());
 	//printf("ASTTree.tree[%d].name %s\n", mp, ASTTree.tree[mp].name.c_str());
@@ -1161,266 +1191,15 @@ int sematic_parser::AST2TAC()
 	//}
 	//assert(mp != ASTTree.tree.size());
 #endif // _DEBUG_
-
-	//if (mp == ASTTree.tree.size())
-	//{
-	//	ret = dfs_AST(mp);
-	//	ASTTree.tree[mp].show_code();
-	//}
-	if(!cnt)
-	{
-		puts("缺少main函数作为入口");
-		return -1;
-	}
-	else if (cnt > 1)
-	{
-		puts("存在多个main函数作为入口");
-	}
+	
 #ifdef _DEBUG_
-	puts("AST2TAC end");
+	//puts("AST2TAC end");
 #endif // _DEBUG_
 	return ret;
 }
 
 
-//void sematic_parser::end()
-//{
-//	f1.close();
-//	f2.close();
-//}
-//
-//int sematic_parser::_add_const_var_leaf_(int val) {
-//	node tn = node(const_var, val);
-//	tn.is_leaf = true;
-//	int idx = _chk_in_dag_(tn);
-//	if (idx == -1) {
-//		idx = dag.size();
-//		dag.push_back(tn);
-//	}
-//	return idx;
-//}
-//
-//int sematic_parser::_chk_in_dag_(node n) {
-//	if (n.type == const_var) {
-//		for (int i = 0; i < dag.size(); i++) {
-//			if (dag[i].type == const_var && dag[i].val == n.val) {
-//				return i;
-//			}
-//		}
-//	}
-//	// 如果是变量的话 直接忽略
-//	return -1;
-//}
-//
-//int sematic_parser::_add_ident_leaf(int idx) {
-//	int ret = -1;
-//	if (id2node.find(idx) == id2node.end()) {// 是之前没有出现过的变量
-//		id2node[idx] = ret = dag.size();
-//		node tn = node(ident, enum_assign, idx);
-//		tn.is_leaf = true;
-//		dag.push_back(tn);
-//	}
-//	else {
-//		ret = id2node[idx];
-//	}
-//	return ret;
-//}
-//
-//int sematic_parser::_add_ident_node_(node n) {
-//	int idx = 0;
-//	for (auto & tn : dag) {
-//		if (tn.come_op == n.come_op && tn.op1 == n.op1 && tn.op2 == n.op2) {
-//			break;
-//		}
-//		idx++;
-//	}
-//	if (idx == dag.size()) {
-//		n.is_leaf = false;
-//		dag.push_back(n);
-//		if (n.op1 != -1)dag[n.op1].to.push_back(idx); // 加入to，方便之后的拓扑排序
-//		if (n.op2 != -1)dag[n.op2].to.push_back(idx);
-//	}
-//	return idx;
-//}
-//
-//void sematic_parser::_optim_assign_(const quadra_tuple & q) {
-//	int idx1 = id_table[q.op1].type == ident ? _add_ident_leaf(q.op1) :
-//		_add_const_var_leaf_(id_table[q.op1].val);
-//	id2node[q.op2] = idx1;
-//}
-//
-//void sematic_parser::_optim_op_(const quadra_tuple & q) {
-//	int idx1 = id_table[q.op1].type == ident ? _add_ident_leaf(q.op1) :
-//		_add_const_var_leaf_(id_table[q.op1].val)
-//		, idx2 = id_table[q.op1].type == ident ? _add_ident_leaf(q.op2) :
-//		_add_const_var_leaf_(id_table[q.op2].val);
-//	if (dag[idx1].type == const_var && dag[idx2].type == const_var) {
-//		//如果op1和op2都是常量, dst一定是变量，所以直接拉到add的结果节点上
-//		int val;
-//		if (q.func == enum_add)val = dag[idx1].val + dag[idx2].val;
-//		else if (q.func == enum_sub)val = dag[idx1].val - dag[idx2].val;
-//		else if (q.func == enum_mul)val = dag[idx1].val * dag[idx2].val;
-//		else val = dag[idx1].val / dag[idx2].val;
-//		int dst = _add_const_var_leaf_(val);
-//		id2node[q.dst] = dst;
-//	}
-//	else {
-//		node tn = node(ident, q.func, idx1, idx2);
-//		int idx2 = _add_ident_node_(tn);
-//		id2node[q.dst] = idx2; // 将dst加入映射
-//	}
-//}
-//
-//void sematic_parser::_optim_print_(const quadra_tuple & q) {
-//	// 无需优化，直接加入即可
-//	int idx1 = id_table[q.op1].type == ident ? _add_ident_leaf(q.op1) :
-//		_add_const_var_leaf_(id_table[q.op1].val);
-//	node tn = node(ident, enum_print, idx1);
-//	_add_ident_node_(tn);
-//}
-//
-//// 优化函数(main)
-//void sematic_parser::optim() {
-//	for (int i = 0; i < quadra_tuple_list.size(); i++) {
-//		switch (quadra_tuple_list[i].func) {
-//		case enum_assign:
-//			_optim_assign_(quadra_tuple_list[i]);
-//			break;
-//		case enum_add:
-//		case enum_sub:
-//		case enum_mul:
-//		case enum_div:
-//			_optim_op_(quadra_tuple_list[i]);
-//			break;
-//		case enum_print:
-//			_optim_print_(quadra_tuple_list[i]);
-//			break;
-//		}
-//	}
-//	gen_optimized_quadra_tuple_list();
-//}
-//
-//int sematic_parser::add_const_id(int val) {
-//	string name = num2str(val);
-//	int ret = add_id(name, const_var);
-//	return ret == -1 ? id_table.size() - 1 : ret;
-//}
-//
-//inline string sematic_parser::num2str(int num) {
-//	string temp;
-//	stringstream ss;
-//	ss << num;
-//	ss >> temp;
-//	return temp;
-//}
-//
-//int sematic_parser::get_node_id(int node_idx, vector<vector<int>> & node2id) {// 查询idx号node对应的id的值
-//	int ret = -1;
-//	if (node2id[node_idx].size() == 0) {// 如果该节点还没有加入id_table, 则加入,而且这一定是const_var
-//		if (dag[node_idx].type == const_var) {
-//			ret = add_const_id(dag[node_idx].val);
-//			node2id[node_idx].push_back(ret);
-//		}
-//		else {// 叶子节点的标识符
-//		//TODO 解决叶子结点标识符的问题，以及temp标识符的问题
-//			ret = dag[node_idx].op1;
-//		}
-//		node2id[node_idx].push_back(ret);
-//	}
-//	else {
-//		// 如果是常量，则输出常量
-//		// 这个常量还是放在最后一个的
-//		// 是变量型节点, 将最后一个取出来当做是该节点的
-//		//合并这两种情况得
-//		ret = node2id[node_idx].back();
-//	}
-//	return ret;
-//}
-//
-//// 将单个节点转化为4元组
-//void sematic_parser::node2quadra_tuple(int idx, vector<vector<int>> & node2id) {
-//	const node &tn = dag[idx];
-//	if (node2id[idx].size() == 0 && dag[idx].type == const_var) { // 该节点没有标识符，是常量节点，则不管
-//	}
-//	else if (tn.type == const_var) { // 如果是常量且有标识符的节点，则可以认为是赋值
-//		int idx2 = add_const_id(tn.val);
-//		for (auto i : node2id[idx]) {
-//			// 通过赋值，将标识符赋值
-//			optimized_quadra_tuple_list.push_back(quadra_tuple(enum_assign, i, idx2));
-//		}
-//		node2id[idx].push_back(idx2);
-//	}
-//	// 如果是非叶子结点的标识符
-//	// else if(tn.is_leaf == false && tn.type == ident){
-//	else if (tn.type == ident) {
-//		// 这里不会为两个常量，因为常量在之前已近合并了
-//		switch (tn.come_op) {
-//		case enum_add:
-//		case enum_sub:
-//		case enum_mul:
-//		case enum_div: {
-//			int node_idx1 = tn.op1, node_idx2 = tn.op2;
-//			int op1 = get_node_id(node_idx1, node2id), op2 = get_node_id(node_idx2, node2id);
-//			int dst = 0;
-//			if (node2id[idx].size() == 0) {
-//				node2id[idx].push_back(add_temp());
-//			}
-//			optimized_quadra_tuple_list.push_back(quadra_tuple(tn.come_op, op1, op2, node2id[idx][dst++]));// 就第一个执行运算，其他均为赋值操作
-//			for (; dst < node2id[idx].size(); dst++) {
-//				optimized_quadra_tuple_list.push_back(quadra_tuple(enum_assign, node2id[idx][0], node2id[idx][dst++]));
-//			}
-//			break;
-//		}
-//		default: // 没有操作符的就是外来的标识符
-//		case enum_assign: {
-//			// 这里认为不可能是$temp，因为$temp没有被赋值过，不能作为建立node的基础
-//			int op1 = tn.op1;
-//			int op2 = 0;
-//			for (; op2 < node2id[idx].size(); op2++) {
-//				if (node2id[idx][op2] != op1)
-//					optimized_quadra_tuple_list.push_back(quadra_tuple(enum_assign, op1, node2id[idx][op2++]));
-//			}
-//			break;
-//		}
-//		case enum_print: {
-//			int op1 = get_node_id(tn.op1, node2id);
-//			optimized_quadra_tuple_list.push_back(quadra_tuple(enum_print, op1));
-//			break;
-//		}
-//		}
-//	}
-//}
-//
-//// TODO优化之后使用拓扑排序直接输出优化后的TAC
-//void sematic_parser::sematic_parser::gen_optimized_quadra_tuple_list() {
-//	queue<int> que;
-//	bool * vis = new bool[dag.size()];
-//	vector<vector<int>>  node2id(dag.size());
-//	Vn_reg_cnt = 0; // 借用add_temp函数
-//	for (auto i : id2node) {
-//		if (id_table[i.first].name[0] != '$')
-//			node2id[i.second].push_back(i.first);
-//	}
-//	for (int i = 0; i < dag.size(); i++) {
-//		if (dag[i].is_leaf)que.push(i);
-//		vis[i] = false;
-//	}
-//	while (que.empty() == false) {
-//		int idx = que.front(); que.pop();
-//		if (vis[idx])continue;
-//		vis[idx] = true;
-//		for (auto i : dag[idx].to) {
-//			if (vis[i] == false) {
-//				que.push(i);
-//			}
-//		}
-//		node2quadra_tuple(idx, node2id);
-//	}
-//	puts("optimzed_quadra_tuple_list");
-//	print_quadra_tuple_list(optimized_quadra_tuple_list);
-//	delete[]vis;
-//}
-//
+
 
 	
 	

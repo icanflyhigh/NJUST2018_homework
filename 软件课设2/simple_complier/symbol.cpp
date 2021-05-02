@@ -7,7 +7,7 @@ symtab::symtab():cur_table(0), global_table(0)
 	//local_tables.push_back(symbol_table());
 }
 
-symbol* symtab::add_symbol(string & str, symbol &sb)
+symbol* symtab::add_symbol(string & str, symbol &sb, int dom)
 {
 #ifdef _DEBUG_
 	//for (auto f : fa)
@@ -19,41 +19,40 @@ symbol* symtab::add_symbol(string & str, symbol &sb)
 	int  tidx =  cur_table;
 	// 逐层寻找标志
 	int cnt = 0;
-	while (1)
+	if (dom == -1)
 	{
-		symbol_table & st = *local_tables[tidx];
-		auto iter = st.find(str);
-		if (iter != st.end() && iter->second.not_in != tidx)
+		while (1)
 		{
-#ifdef _DEBUG_
-			//printf("find %S\n", str);
-#endif // _DEBUG_
-
-			return &((*iter).second);
-		}
-		cnt++;
-		auto fiter = fa.find(tidx);
-		// 如果没有父亲，则为根节点
-		if (fiter == fa.end())break;
-		
-		tidx = (fiter->second);
-		if (cnt > 100) 
-		{
-			cout << fiter->second << endl;
-			for (auto f : fa)
+			symbol_table & st = *local_tables[tidx];
+			auto iter = st.find(str);
+			if (iter != st.end() && iter->second.not_in != tidx)
 			{
-				cout << f.first << "  " << f.second << endl;
+				return &((*iter).second);
 			}
-			puts("寻找符号表错误");
-			system("pause");
+			cnt++;
+			auto fiter = fa.find(tidx);
+			// 如果没有父亲，则为根节点
+			if (fiter == fa.end())break;
+		
+			tidx = (fiter->second);
+			if (cnt > 100 ) 
+			{
+				cout << fiter->second << endl;
+				for (auto f : fa)
+				{
+					cout << f.first << "  " << f.second << endl;
+				}
+				puts("寻找符号表错误");
+				//system("pause");
 
+			}
 		}
 	}
-
 	(*local_tables[cur_table])[str] = sb;
 	(*local_tables[cur_table])[str].domain = cur_table;
 	(*local_tables[cur_table])[str].level = cnt;
 	return &(*local_tables[cur_table])[str];
+	
 }
 
 void symtab::add_table(int fa_table)

@@ -23,6 +23,7 @@ map <func, string> func2str
 	{TAG, "TAG"},
 	{CALL, "CALLL"},
 	{RETURN, "RETURN"},
+	{AND, "AND"},
 };
 void TAC::show()
 {

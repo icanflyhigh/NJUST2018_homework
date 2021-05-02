@@ -70,30 +70,31 @@ void lex_generater::E(const char * str)// 标识符
 void lex_generater::Z(const char * s)// 整数
 {
 	outNum(s, ""); // s->(0-9)
-	//out(s, "+", "Z");// s->+Z
-	//out(s, "-", "Z");// s->-Z
+	out(s, "+", "Z3");// s->+Z3
+	out(s, "-", "Z3");// s->-Z3
+	outNum("Z3", "Z", 1);// s->(1-9)Z
+	outNum("Z3", "");// s->(1-9)Z
 	outNum(s, "Z", 1);// s->(1-9)Z
-	outNum("Z", ""); // Z->(0-9)
+	outNum("Z", ""); // Z->(0-9) 
 	outNum("Z", "Z");// Z->(0-9)Z
 	out("Z", "e", "Z1");// Z->eZ1
 	out("Z", "E", "Z1");// Z->EZ1
 	out("Z1", "+", "Z2");// Z1->+Z2
 	out("Z1", "-", "Z2");// Z1->-Z2
-	outNum("Z1", "Z2", 1);
-	outNum("Z1", ""); // Z1 -> (0-9)
-	outNum("Z2", "Z2");
-	outNum("Z2", "");
+	outNum("Z1", "Z2", 1);// Z1->(1-9)Z2
+	outNum("Z1", ""); // Z1->(0-9)
+	outNum("Z2", "Z2"); // Z2->(0-9>Z2
+	outNum("Z2", ""); // Z2->(0-9)
 
-	out("Z", "i");
-	out("Z", "I");
+	out("Z", "i"); // Z->i
+	out("Z", "I"); // Z->I
 
 }
 
 void lex_generater::X(const char * s)// 小数
 {
-
-	//out(s, "+", "X1"); // s->+X1
-	//out(s, "-", "X1"); // s->-X1
+	out(s, "+", "X1"); // s->+X1
+	out(s, "-", "X1"); // s->-X1
 	outNum(s, "X2", 1);// s->(1-9)X2
 	outNum("X2", "X2");// X2->(0-9)X2
 	out(s, "0", "X3");// s->0X3

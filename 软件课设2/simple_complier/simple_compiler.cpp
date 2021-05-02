@@ -12,10 +12,10 @@ void gen_lex(){
 	lgen.gen();
 }
 
-void lex_parse(string lex_path){
+int lex_parse(string lex_path){
 	All_lex_parser  lexParser("lex.txt", "token_list.txt");
 	lexParser.parse_all_grammar();
-	lexParser.check_code("code.txt");
+	return lexParser.check_code("code.cpp");
 }
 
 void syntax_parse(string file_path, string token_path){
@@ -46,9 +46,11 @@ int main()
 
 	string lex_path = "lex.txt", syntax_path = "syntax.txt", sematic_path = "sematic.txt";
 	//gen_lex();
-	lex_parse(lex_path);
-	//syntax_parse(syntax_path, "token_list.txt");
-	sematic_parse(sematic_path, "token_list.txt");
-	system("pause");
+	if (!lex_parse(lex_path))
+	{
+		//syntax_parse(syntax_path, "token_list.txt");
+		sematic_parse(sematic_path, "token_list.txt");
+	}
+	//system("pause");
 }
 
