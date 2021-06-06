@@ -1,11 +1,11 @@
 #define _CRT_SECURE_NO_WARNINGS
+//#include <opencv2/opencv.hpp>
 #include "bmpConverter.h"
 #include "homework.h"
-#include <opencv2/opencv.hpp>
 #include <iostream>
 #include <ctime>
 using namespace std;
-using namespace cv;
+//using namespace cv;
 void hw2_time_cmp()
 {
 	bmpConverter bmpCvt("./pic/Fig0201.bmp");
@@ -110,43 +110,119 @@ void hw3_inv_SSE()
 
 void hw3_1dMed_col_cal()
 {
-	bmpConverter bmpCvt("./pic/H0302Gry.bmp");// H0302Gry.bmp
+	bmpConverter bmpCvt("./pic/H0302Gry.bmp");  // H0302Gry.bmp
 	bmpCvt.AMedianFilter2d1c(21, 21, true);
 	bmpCvt.Img2Bmp("./pic/H0302Gry_MedF_col_cal.bmp");
 }
 
 void hw3_1dGuass()
 {
-	bmpConverter bmpCvt("./pic/H0303Gry.bmp");// H0303Gry.bmp
+	bmpConverter bmpCvt("./pic/H0303Gry.bmp");  // H0303Gry.bmp
 	bmpCvt.AGuassFilter2d1c(3, 19);
 	bmpCvt.Img2Bmp("./pic/H0303Gry_Guass2.bmp");
 }
 
-void opencv_guass_blur()
+//void opencv_guass_blur()
+//{
+//	cv::Mat src, dst;
+//	const char* filename = "./pic/H0303Gry.bmp";
+//
+//	cv::imread(filename).copyTo(src);
+//	if (src.empty()) {
+//		throw("Faild open file.");
+//	}
+//
+//	int ksize1 = 19;
+//	int ksize2 = 19;
+//	double sigma1 = 3;
+//	double sigma2 = 0;
+//	cv::GaussianBlur(src, dst, cv::Size(ksize1, ksize2), sigma1, sigma2);
+//	//高斯模糊的函数
+//	//第三，第四，第五参数为高斯模糊的度数
+//
+//	cv::imshow("src", src);
+//	cv::imshow("dst", dst);
+//	cv::imwrite("./pic/H0303Gry_cvblur.bmp", dst);
+//
+//	cv::waitKey();
+//	cout << getGaussianKernel(ksize1, sigma1, CV_64F);
+//	return ;
+//}
+
+
+void sqrt_cmp()
 {
-	cv::Mat src, dst;
-	const char* filename = "./pic/H0303Gry.bmp";
+	float a;
+	time_t start;
+	int cishu = 1000000;
 
-	cv::imread(filename).copyTo(src);
-	if (src.empty()) {
-		throw("Faild open file.");
+	cin >> a;
+	start = clock();
+	for (int i = 0; i < cishu; i++)
+	{
+		fSqrtByCarmack(a);
 	}
+	cout << "fSqrtByCarmack: " << clock() - start << endl;
+	start = clock();
+	for (int i = 0; i < cishu; i++)
+	{
+		sqrtf(a);
+	}
+	cout << "sqrtf: " << clock() - start << endl;	
+	
+/*
+平台配置x86 debug
+结果：
+42
+fSqrtByCarmack: 33
+sqrtf: 27
+结论：
+自带的更快，原因可能跟硬件有关
+*/
 
-	int ksize1 = 19;
-	int ksize2 = 19;
-	double sigma1 = 3;
-	double sigma2 = 0;
-	cv::GaussianBlur(src, dst, cv::Size(ksize1, ksize2), sigma1, sigma2);
-	//高斯模糊的函数
-	//第三，第四，第五参数为高斯模糊的度数
-
-	cv::imshow("src", src);
-	cv::imshow("dst", dst);
-	cv::imwrite("./pic/H0303Gry_cvblur.bmp", dst);
-
-	cv::waitKey();
-	cout << getGaussianKernel(ksize1, sigma1, CV_64F);
-	return ;
 }
 
 
+
+void hw4_grad1_grad2_shenjun()
+{
+	bmpConverter bmpCvt("./pic/H0401Gry.bmp");  // H0303Gry.bmp
+	bmpCvt.AEadgeDectGrad_SJ2d1c(0.5);
+	bmpCvt.Img2Bmp("./pic/H0401js_gd.bmp");
+	bmpConverter bmpCvt2("./pic/H0401Gry.bmp");  // H0303Gry.bmp
+	bmpCvt2.AEadgeDectLaplacain_Gd2d1c(0.5);
+	bmpCvt2.Img2Bmp("./pic/H0401la_gd.bmp");
+}
+
+void test()
+{
+	bmpConverter bmpCvt("./pic/treeGry.bmp");  // H0303Gry.bmp
+	bmpCvt.test();
+	//bmpCvt.Img2Bmp("./pic/tree.bmp");
+}
+
+void hw4_num_dect()
+{
+	// 缩小
+	// 得到边缘强度
+	// 积分图
+	// 得到最大强度区域
+	// 放大
+	bmpConverter bmpCvt("./pic/H0402Gry.bmp");  // H0303Gry.bmp
+	bmpCvt.num_dect();
+	bmpCvt.Img2Bmp("./pic/H0402_det_sb.bmp");
+	bmpConverter bmpCvt1("./pic/H0403Gry.bmp");  // H0303Gry.bmp
+	bmpCvt1.num_dect();
+	bmpCvt1.Img2Bmp("./pic/H0403_det_sb.bmp");
+	bmpConverter bmpCvt2("./pic/H0404Gry.bmp");  // H0303Gry.bmp
+	bmpCvt2.num_dect();
+	bmpCvt2.Img2Bmp("./pic/H0404_det_sb.bmp");
+
+}
+
+void hw4_canny()
+{
+	bmpConverter bmpCvt("./pic/H0401Gry.bmp");  // H0303Gry.bmp
+	bmpCvt.AEadgeCanny2d1c(0.4, 6, 125, 75);
+	bmpCvt.Img2Bmp("./pic/H0401_canny.bmp");
+}

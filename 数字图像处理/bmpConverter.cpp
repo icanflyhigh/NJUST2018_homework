@@ -1,6 +1,13 @@
 #include "bmpConverter.h"
-
 #include <cmath>
+#include <cstring>
+#include <cstdio>
+#include <iostream>
+#include <algorithm>
+#include <nmmintrin.h>
+#include "Img.h"
+#include "switcher.h"
+#include "BMPCore.h"
 #define BTYE BYTE
 using namespace std;
 const double pi = 3.1415926535;
@@ -228,7 +235,8 @@ bool bmpConverter::Img28bitBmp(const char * DstFile, char mod)
 	BmpHeader.biYPelsPerMeter = 0;
 	BmpHeader.biClrUsed = 0;
 	BmpHeader.biClrImportant = 0;
-	if (fwrite((void *)&BmpHeader, 1, sizeof(BmpHeader), fp) != sizeof(BmpHeader)) Suc = false;
+	if (fwrite((void *)&BmpHeader, 1, sizeof(BmpHeader), fp) != sizeof(BmpHeader)) 
+		Suc = false;
 	// write Pallete
 
 	// 根据mod预设颜色
@@ -574,7 +582,7 @@ void bmpConverter::PHistogramEqualize24bit2()
 }
 
 //_____________________hw3___________________________
-
+// RGB转灰度的测试函数
 void bmpConverter::RGB2Gry2(bool table_chk, bool inplace)
 {
 	if (channel != 3 || !pImg)return;
@@ -614,10 +622,8 @@ void bmpConverter::RGB2Gry2(bool table_chk, bool inplace)
 	delete temp_save;
 	return;
 }
-
-
 // 二维均值滤波，列积分
-void bmpConverter::AavgFilter2d8bit_col_cal(int m, int n, BYTE  * pDes)
+void bmpConverter::AavgFilter2d8bit_col_cal(BYTE * pImg, int width, int height, int m, int n, BYTE  * pDes)
 {
 	BYTE *pAdd, *pDel, *pRes;
 	int halfx, halfy;
@@ -664,7 +670,7 @@ void bmpConverter::AavgFilter2d8bit_col_cal(int m, int n, BYTE  * pDes)
 	return;
 }
 // 计算补充滤波器宽度的积分图
-void bmpConverter::getCalGraph(int m, int n, int * pSum)
+void bmpConverter::AgetCalGraph(BYTE * pImg, int width, int height, int m, int n, int * pSum)
 {
 	BYTE *pCur ;
 	int *pRes;
@@ -685,19 +691,15 @@ void bmpConverter::getCalGraph(int m, int n, int * pSum)
 		{
 			rowsum += *pCur++;
 			*(pRes++) = *(pRes - w) + rowsum;
-
+			//pRes--;
 		}
 		// 右侧padding
 		for (x = 0; x < halfx; x++)*pRes++ = *(pRes - 1);
-#ifdef DEBUG
-		/*printf("%d %d\n", *(pRes - 1));*/
-#endif // DEBUG
 	}
 	// 下侧padding
 	for (i = 0; i < (halfy) * w; i++) *(pRes++) = *(pRes - w);
 	return;
 }
-
 // 2d均值滤波 使用积分图
 void bmpConverter::AavgFilter2d8bit_calGraph(int * pSum, int m, int n, BYTE * pDes)
 {
@@ -773,13 +775,13 @@ Img bmpConverter::AavgFilter2d1c(int m, int n, bool inplace, char mod)
 	default:
 	case 'c':
 	case 'C':
-		AavgFilter2d8bit_col_cal(m, n, pSrc);
+		AavgFilter2d8bit_col_cal(pImg, width, height, m, n, pSrc);
 		break;
 	case 'G':
 	case 'g':
 	{
 		int * pSum = new int[(width + (m | 1)) * (height + (n | 1))];
-		getCalGraph(m, n, pSum);
+		AgetCalGraph(pImg, width, height, m, n, pSum);
 		AavgFilter2d8bit_calGraph(pSum, m, n, pSrc);
 		break;
 	}
@@ -798,7 +800,6 @@ Img bmpConverter::AavgFilter2d1c(int m, int n, bool inplace, char mod)
 	}
 	
 }
-
 /* 单通道图像反转
 * mod:  'n':正常
 		's':使用SSE
@@ -820,12 +821,12 @@ Img bmpConverter::PInvert1c(char mod, bool inplace)
 		case 'n':
 		case 'N':
 		case '0':
-			PInvert8bit(pDes);
+			PInvert8bit(pImg, width * height, pDes);
 			break;
 		case 's':
 		case 'S':
 		case '1':
-			PInvert8bit_SSE(pDes);
+			PInvert8bit_SSE(pImg, width * height, pDes);
 			break;
 		}
 	if (inplace)
@@ -839,33 +840,31 @@ Img bmpConverter::PInvert1c(char mod, bool inplace)
 		return Img(pDes, width, height);
 	}
 }
-
-
-void bmpConverter::PInvert8bit(BYTE * pDes)
+// 不适用SSE的灰度图像反转
+void bmpConverter::PInvert8bit(BYTE * pImg, int sum, BYTE * pDes)
 {
-	BYTE * pCur = pImg, * pEnd = pImg + width *height, *pRes = pDes;
+	BYTE * pCur = pImg, * pEnd = pImg + sum, *pRes = pDes;
 	while (pCur < pEnd) *(pRes++) = ~*pCur++;
 }
-
-
-
-void bmpConverter::PInvert8bit_SSE(BYTE * pDes)
+// 使用SSE的灰度图像反转
+void bmpConverter::PInvert8bit_SSE(BYTE * pImg, int sum, BYTE * pDes)
 {
 	BYTE * pCur, * pRes;
 	__m128i * pCurSSE, *pDesSSE;
 	__m128i inver;
 	int res, t;
+
 	inver = _mm_set_epi32(-1, -1, -1, -1);
-	res = width * height & 15, t = width * height / 16;
+	res = sum & 15, t = sum / 16;
 	pCur = pImg;
 	pCurSSE = (__m128i *)pCur;
 	pDesSSE = (__m128i *)pDes;
 
 	while (t--)*pDesSSE++ = _mm_sub_epi32(inver, *pCurSSE++);
-	pCur = pImg + width * height, pRes = pDes + width * height;
+	pCur = pImg + sum, pRes = pDes + sum;
 	while (res--) *(pRes--) = ~*pCur--;
 }
-
+// 二维维均值滤波单通道
 Img bmpConverter::AMedianFilter2d1c(int m, int n, bool inplace, char mod)
 {
 	if (!pImg)
@@ -897,7 +896,7 @@ Img bmpConverter::AMedianFilter2d1c(int m, int n, bool inplace, char mod)
 		default:
 		case 'c':
 		case 'C':
-			AMedianFilter8bit_col_cal(m, n, pSrc);
+			AMedianFilter8bit_col_cal(pImg, width, height, m, n, pSrc);
 			break;
 		case 'G':
 		case 'g':
@@ -918,8 +917,8 @@ Img bmpConverter::AMedianFilter2d1c(int m, int n, bool inplace, char mod)
 		return Img(pSrc, width, height);
 	}
 }
-
-void bmpConverter::AMedianFilter8bit_col_cal(int m, int n, BYTE * pDes)
+// 二维维均值滤波单通道使用列积分
+void bmpConverter::AMedianFilter8bit_col_cal(BYTE * pImg, int width, int height, int m, int n, BYTE * pDes)
 {
 	BYTE *pCur, *pRes;
 	int halfx, halfy, x, y, i, j, y1, y2, res;
@@ -1040,7 +1039,7 @@ void bmpConverter::AMedianFilter8bit_col_cal(int m, int n, BYTE * pDes)
 	printf("dbg: %lf \n", 1.0 * dbgCmpTimes / width / height);
 	return;
 }
-
+// 一维维高斯滤波单通道
 void bmpConverter::AGuassFilter1d(BYTE * pSrc, int width, int height, int * pFilter, int m, BYTE * pDes)
 {
 	int offset = 17;  
@@ -1105,13 +1104,12 @@ void bmpConverter::AGuassFilter1d(BYTE * pSrc, int width, int height, int * pFil
 		}
 	}
 }
-
-Img bmpConverter::T(BYTE * &pSrc, int w, int h, bool inplace)
+// 计算pSrc的转置
+void bmpConverter::T(BYTE * pSrc, int w, int h, BYTE * pDes)
 {
-	BYTE * pDes , * pX, *pCur;
+	BYTE * pX, *pCur;
 	int x, y;
 
-	pDes = new BYTE[w * h];
 	pCur = pDes;
 
 	for (x = 0; x < w; x++)
@@ -1122,20 +1120,10 @@ Img bmpConverter::T(BYTE * &pSrc, int w, int h, bool inplace)
 		}
 	}
 
-	if (inplace)
-	{
-		if(pSrc == pImg)swap(width, height);
-		delete pSrc;
-		pSrc = pDes;
-		return Img();
-	}
-	else
-	{
-		return Img(pDes, width, height);
-	}
+	return;
 }
 
-
+// 计算高斯核
 void getGuassFilter(double dev, int m, int * pFilter, int offset=17)
 {
 	int halfm;
@@ -1155,7 +1143,7 @@ void getGuassFilter(double dev, int m, int * pFilter, int offset=17)
 		pFilter[halfm + i] = pFilter[halfm - i] = (1 << offset) * dF[halfm + i] / sum;
 	}
 }
-
+// 二维高斯滤波单通道
 Img bmpConverter::AGuassFilter2d1c(double dev, int m, bool inplace, char mod)
 {
 	if (!pImg)
@@ -1179,23 +1167,23 @@ Img bmpConverter::AGuassFilter2d1c(double dev, int m, bool inplace, char mod)
 #endif // DEBUG
 		return Img();
 	}
-	BYTE* pSrc, * pSrc2;
+	BYTE* pSrc, * pSrc2, * pSrcT, * pSrc2T;
 	int pFilter[128];
 	m |= 1;
 
 	getGuassFilter(dev, m, pFilter);
 	pSrc = new BYTE[width * height];
-	pSrc2 = new BYTE[width * height];
+
 
 #ifdef DEBUG
-	double fsum = 0;
-	int offset = 17;
-	for (int i = 0; i < m; i++)
-	{
-		fsum += 1.0 * pFilter[i] / (1 << offset);
-		printf("%lf \n", 1.0 * pFilter[i] / (1 << offset));
-	}
-	cout << fsum << endl;
+	//double fsum = 0;
+	//int offset = 17;
+	//for (int i = 0; i < m; i++)
+	//{
+	//	fsum += 1.0 * pFilter[i] / (1 << offset);
+	//	printf("%lf \n", 1.0 * pFilter[i] / (1 << offset));
+	//}
+	//cout << fsum << endl;
 #endif // DEBUG
 	switch (mod)
 	{
@@ -1203,12 +1191,18 @@ Img bmpConverter::AGuassFilter2d1c(double dev, int m, bool inplace, char mod)
 	case 'c':
 	case 'C':
 	{
+		pSrc2 = new BYTE[width * height];
+		pSrcT = new BYTE[width * height];
+		pSrc2T = new BYTE[width * height];
+
 		AGuassFilter1d(pImg, width, height, pFilter, m, pSrc);
-		T(pSrc, width, height);
-		AGuassFilter1d(pSrc, height, width, pFilter, m, pSrc2);
-		T(pSrc2, height, width);
+		T(pSrc, width, height, pSrcT);
+		AGuassFilter1d(pSrcT, height, width, pFilter, m, pSrc2);
+		T(pSrc2, height, width, pSrc2T);
 		delete pSrc;
-		pSrc = pSrc2;
+		delete pSrc2;
+		delete pSrcT;
+		pSrc = pSrc2T;
 		break;
 	}
 		
@@ -1230,4 +1224,323 @@ Img bmpConverter::AGuassFilter2d1c(double dev, int m, bool inplace, char mod)
 	{
 		return Img(pSrc, width, height);
 	}
+}
+
+//__________________________________hw4______________________________
+void getEdg(BYTE * pSrc, int width, int height, BYTE threshold)
+{
+	BYTE * pCur, *pEnd;
+	for (pCur = pSrc, pEnd = pSrc + width * height; pCur < pEnd; pCur++)
+	{
+		*pCur = *pCur > threshold ? 255 : 0;
+	}
+}
+// 边缘检测，一阶梯度+沈俊算子
+Img bmpConverter::AEadgeDectGrad_SJ2d1c(double a0, bool inplace)
+{
+	if (!pImg)return Img();
+	BYTE *pDstImg, *pTmpImg;
+	BYTE threshold;
+	int i;
+
+	threshold = 10;
+	pDstImg = new BYTE[width * height];
+	pTmpImg = new BYTE[width * height];
+	a0 = (max)(0.01, (min)(a0, 0.99));
+
+	AEDOpShenJun4_8bit(pImg, pTmpImg, width, height, a0, pDstImg);
+	AEDOpGrad1_8bit(pImg, width, height, pTmpImg);
+	getEdg(pTmpImg, width, height, threshold);
+
+	for (i = 0; i < width * height; i++)
+	{
+		pDstImg[i] = pDstImg[i] & pTmpImg[i];
+	}
+
+	delete pTmpImg;
+	if (inplace)
+	{
+		delete pImg;
+		pImg = pDstImg;
+		return Img();
+	}
+	else
+	{
+		return Img(pDstImg, width, height);
+	}
+
+	return Img();
+}
+
+Img bmpConverter::AEadgeDectLaplacain_Gd2d1c(double a0, BYTE threshold, bool inplace)
+{
+	if (!pImg)return Img();
+	BYTE *pDstImg, *pTmpImg;
+	int i;
+
+	pDstImg = new BYTE[width * height];
+	pTmpImg = new BYTE[width * height];
+	a0 = (min)(0.01, (max)(a0, 0.99));
+
+	AEDOpShenJun4_8bit(pImg, pTmpImg, width, height, a0, pDstImg);
+	AEDOpGrad1_8bit(pImg, width, height, pTmpImg);
+	getEdg(pTmpImg, width, height, threshold);
+
+	for (i = 0; i < width * height; i++)
+	{
+		pDstImg[i] = pDstImg[i] & pTmpImg[i];
+	}
+
+	delete pTmpImg;
+	if (inplace)
+	{
+		delete pImg;
+		pImg = pDstImg;
+		return Img();
+	}
+	else
+	{
+		return Img(pDstImg, width, height);
+	}
+
+	return Img();
+}
+
+
+Img bmpConverter::AEadgeDectsobel_ShenJun2d1c(double a0, BYTE threshold, bool inplace)
+{
+	if (!pImg)return Img();
+	BYTE *pDstImg, *pTmpImg;
+	int i;
+
+	pDstImg = new BYTE[width * height];
+	pTmpImg = new BYTE[width * height];
+	a0 = (max)(0.01, (min)(a0, 0.99));
+
+	AEDOpShenJun4_8bit(pImg, pTmpImg, width, height, a0, pDstImg);
+	AEDOpSobel_8bit(pImg, width, height, pTmpImg);
+
+	getEdg(pTmpImg, width, height, threshold);
+	for (i = 0; i < width * height; i++)
+	{
+		pDstImg[i] = pDstImg[i] & pTmpImg[i];
+	}
+
+
+	delete []pTmpImg;
+	if (inplace)
+	{
+		delete pImg;
+		pImg = pDstImg;
+		return Img();
+	}
+	else
+	{
+		return Img(pDstImg, width, height);
+	}
+}
+// 缩小到1/16，使用均值，已知宽高
+void bmpConverter::shrink16(BYTE *pSrcImg, int width, int height, BYTE *pDstImg)
+{
+	int sum;
+	BYTE *pCur, *pDes;
+	int x, y;
+
+	for (y = 0, pCur = pSrcImg, pDes = pDstImg; y < height; y += 4)
+	{
+		for (x = 0; x < width; x += 4)
+		{
+			// 求和
+			//sum = 0, y = 0;
+			//for (y = 0; y < 4 * width; y += width)
+			//{
+			//	sum += pCur[y];
+			//	sum += pCur[y + 1];
+			//	sum += pCur[y + 2];
+			//	sum += pCur[y + 3];
+			//}
+			//*pDes++ = sum / 16;
+			*pDes++ = *pCur;
+			pCur += 4;
+		}
+		pCur += 3 * width;
+	}
+
+}
+
+void getMaxAreaCalGraph(int *pSum, int m, int n, int width, int height, int &mx, int &my)
+{
+	int *pY1, *pY2, *pY3;
+	int halfx, halfy, w;
+	int y, x1, x2;
+	int curSum, befSum, nxtSum, maxSum, c, tempSum;
+	int rowSum[1024];
+
+	// 初始化
+	m = m | 1; 
+	n = n | 1; 
+	halfx = m / 2; 
+	halfy = n / 2; 
+	w = width + 1;
+	c = (1 << 23) / (m * n); 
+	mx = 0, my = 0;
+	maxSum = -1e9;
+	for (x1 = width - m; x1 <= width + m; x1++)rowSum[x1] = 0;
+
+	// 最大值区域求取
+	//for (y = 2 * n, pY3 = pSum, pY1 = pY3 + w * n, pY2 = pY1 + w * n;	y < height;	y++, pY1 += w, pY2 += w)
+	for (y = 2 * n, pY3 = pSum, pY1 = pY3 + w * n, pY2 = pY1 + w * n;	y < height;	y++, pY1 += w, pY2 += w, pY3 += w)
+	{
+		befSum = 0, curSum = 0;
+		for (x1 = 0, x2 = m; x2 <= width; x1++, x2++)
+		{
+			rowSum[x1] = pY1[x1] - pY1[x2] - pY2[x1] + pY2[x2];
+		}
+		for (x1 = m; x1 <= width; x1++)
+		{
+			//tempSum = rowSum[x1] - rowSum[x1 - m] - rowSum[x1 + m];
+			tempSum = rowSum[x1] - rowSum[x1 - m] - rowSum[x1 + m] -   (pY3[x1] - pY3[x1 + w] - pY1[x1] + pY1[x1 + w]);
+			if (tempSum > maxSum)
+			{
+				maxSum = tempSum;
+				mx = x1, my = y;
+
+			}
+		}
+	}
+	return;
+}
+
+void drawSquare(BYTE *pSrcImg, int width, int height, int mx, int my, int w, int h)
+{
+	BYTE *pCur, *pY, *pX;
+
+	pCur = pSrcImg;
+	// 上横线
+	for (pCur = pSrcImg + width * my + mx, pX = pCur + w; pCur < pX; ) *pCur++ = 255;
+	//下横线
+	for (pCur = pSrcImg + width * (my + h) + mx, pX = pCur + w; pCur < pX; ) *pCur++ = 255;
+	// 左竖线
+	for (pCur = pSrcImg + width * my + mx, pY = pCur + h * width; pCur < pY; pCur += width) *pCur = 255;
+	// 右竖线
+	for (pCur = pSrcImg + width * (my)+ mx + w, pY = pCur + h * width; pCur <= pY; pCur += width) *pCur = 255;
+}
+void bmpConverter::num_dect()
+{
+// 缩小
+// 得到边缘强度
+// 积分图
+// 得到最大强度区域
+// 放大
+
+	BYTE *pDstImg, *pTmpImg, *pSrcImg, *pOrgImg;
+	int *pCalGraph;
+	int winSize, mx, my;
+	BYTE threshold;
+	double a0;
+
+	// 初始化
+	a0 = 0.1;
+	threshold = 80;
+	winSize = 25;
+	pCalGraph = new int[(width / 4 + (winSize | 1)) * (height / 4 + (winSize | 1))];
+	pSrcImg = new BYTE[width * height / 16];
+	//BYTE * pSbImg = new BYTE[width * height / 16];
+	pOrgImg = pImg;
+
+	// 缩小图片
+	shrink16(pImg, width, height, pSrcImg);
+	width /= 4, height /= 4;
+	pImg = pSrcImg;
+	// 得到边缘数目
+	AEadgeDectsobel_ShenJun2d1c(a0, threshold);
+	//AEadgeCanny2d1c(1, 5, 60, 80);
+	//AEDOpSobel_8bit(pImg, width, height, pSbImg);
+	//delete[] pSrcImg;
+	//pImg = pSbImg;
+	Img2Bmp("./pic/temp.bmp");
+	// 获得边缘数目的积分图
+	AgetCalGraph(pImg, width, height, 1, 1, pCalGraph);
+	// 原图像100x100的区域
+	// 4x4缩小之后，25x25
+	// 寻找计算图中值最大区域
+	getMaxAreaCalGraph(pCalGraph, winSize, winSize, width, height, mx, my);
+	//drawSquare(pImg, width, height, mx, my - winSize, winSize, winSize);
+	mx *= 4, my = my * 4, width = width * 4, height = height * 4, winSize = winSize * 4;
+	pSrcImg = pImg;
+	pImg = pOrgImg;
+	// 画出框框
+	drawSquare(pImg, width, height, mx, my - winSize, winSize, winSize);
+	delete[] pCalGraph;
+	delete[] pSrcImg;
+}
+
+// canny算子边缘检测
+Img bmpConverter::AEadgeCanny2d1c(double sigma, int Fsize, int uBound, int lBound, bool inplace)
+{
+	BYTE *pDstImg, *pTmpImg;
+	int *pFilter, *dx, *dy;
+
+	// 初始化
+	sigma = 0.4;
+	Fsize = 5;
+	uBound = 125;
+	lBound = 75;
+	pDstImg = new BYTE[width * height];
+	dx = new int[width * height];
+	dy = new int[width * height];
+	pFilter = new int[width * height];
+	pTmpImg = new BYTE[width * height];
+
+	AEDOpCanny_8bit(
+		pImg,
+		pTmpImg,
+		dx, dy,
+		width, height,
+		pFilter, sigma, Fsize,
+		uBound, lBound,
+		pDstImg
+	);
+
+	// 结束
+	delete[] pTmpImg;
+	delete[] pFilter;
+	delete[] dx;
+	delete[] dy;
+	if (inplace)
+	{
+		delete[] pImg;
+		pImg = pDstImg;
+		return Img();
+	}
+	else
+	{
+		return Img(pDstImg, width, height);
+	}
+}
+void bmpConverter::test()
+{
+
+// 缩小
+// 得到边缘强度
+// 积分图
+// 得到最大强度区域
+// 放大
+
+	BYTE *pDstImg, *pTmpImg, *pSrcImg, *pOrgImg, *pTansImg;
+	int *dx, *dy;
+	int Fsize, uBound, lBound;
+	BYTE threshold;
+	double sigma;
+
+	pDstImg = new BYTE[height * width];
+	double pFilter[]{
+		1 , 1 , 1 ,
+		1 , -8 , 1 ,
+		1 , 1 , 1 , };
+	for (int i = 0; i < 9; i++)pFilter[i] *= -1;
+	AConv2d3_8bit(pImg, width, height, pFilter, pDstImg);
+	pImg = pDstImg;
+	Img2Bmp("./pic/tree6.bmp");
+
 }

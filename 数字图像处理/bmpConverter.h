@@ -1,12 +1,7 @@
 #pragma once
 #include <Windows.h>
-#include <cstring>
-#include <cstdio>
-#include <iostream>
-#include <algorithm>
-#include <nmmintrin.h>
 #include "Img.h"
-#include "switcher.h"
+#include "BMPCore.h"
 
 class bmpConverter : public Img
 {
@@ -42,18 +37,28 @@ public:
 	void PHistogramEqualize24bit1();
 	// 24bit直方图标准化实现（三个通道的均值实现）
 	void PHistogramEqualize24bit2();	
-	
-	// 二维维均值滤波
+
+	// 二维维均值滤波单通道
 	Img AavgFilter2d1c(int m, int n, bool inplace = true, char mod='c');
-	// 灰度图像反转，SSE
+	// 灰度图像反转
 	Img PInvert1c(char mod = 'n', bool inplace=true);
-	// 二维中值滤波
+	// 二维中值滤波单通道
 	Img AMedianFilter2d1c(int m, int n, bool inplace = true, char mod = 'c');
-	// 高斯滤波
+	// 二维高斯滤波单通道
 	Img AGuassFilter2d1c(double dev, int m, bool inplace = true, char mod = 'c');
 
+	// 边缘检测，一阶梯度+沈俊算子
+	Img AEadgeDectGrad_SJ2d1c(double a0=0.5, bool inplace=true);
+	// 边缘检测，二阶梯度+一阶梯度
+	Img AEadgeDectLaplacain_Gd2d1c(double a0=0.5, BYTE threshold=10, bool inplace=true);
+	// 边缘检测，sobel+沈俊算子
+	Img AEadgeDectsobel_ShenJun2d1c(double a0=0.5, BYTE threshold=64, bool inplace=true);
 
+	Img AEadgeCanny2d1c(double sigma, int Fsize, int uBound, int lBound, bool inplace = true);
 
+	void num_dect();
+
+	void test();
 private:
 	void PHistogramEqualize14bit(short * pRawImg);
 	void PHistogramEqualize14bit2(short * pRawImg);
@@ -64,19 +69,20 @@ private:
 	bool Img28bitBmp(const char * DstFile, char mod);
 	bool Img224bitBmp(const char * DstFile);
 	//void AavgFilter2d_row_cal(BYTE * pSrc, int m, int n, BYTE  * pDes);
-	void AavgFilter2d8bit_col_cal(int m, int n, BYTE  * pDes);
-	void getCalGraph(int m, int n, int * pSum);
+	void AavgFilter2d8bit_col_cal(BYTE * pImg, int width, int height, int m, int n, BYTE  * pDes);
+	void AgetCalGraph(BYTE * pImg, int width, int height, int m, int n, int * pSum);
 	void AavgFilter2d8bit_calGraph(int  * pSum, int m, int n, BYTE  * pDes);
-	void PInvert8bit_SSE(BYTE * pDes);
-	void PInvert8bit(BYTE * pDes);
-	void AMedianFilter8bit_col_cal(int m, int n, BYTE  * pDes);
+	void PInvert8bit_SSE(BYTE * pImg, int sum, BYTE * pDes);
+	void PInvert8bit(BYTE * pImg, int sum, BYTE * pDes);
+	void AMedianFilter8bit_col_cal(BYTE * pImg, int width, int height, int m, int n, BYTE  * pDes);
 	void AGuassFilter1d(BYTE * pSrc, int width, int height, int * pFilter, int n, BYTE * pDes);
-	Img T(BYTE * & pSrC, int w, int h, bool inplace = true);
-
+	void T(BYTE * pSrC, int w, int h, BYTE * pDes);
 
 	BITMAPFILEHEADER FileHeader;
 	BITMAPINFOHEADER BmpHeader;
-
+	//一以下是为了完成作业而设计的写死的函数
+	// 缩小到1/16
+	void shrink16(BYTE *pSrc, int width, int heigt, BYTE *pDst);
 
 };
 

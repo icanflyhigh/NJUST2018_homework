@@ -11,7 +11,11 @@ void hw3_1dAvgF_calGraph();
 void hw3_inv_SSE();
 void hw3_1dMed_col_cal();
 void hw3_1dGuass();
+//void opencv_guass_blur();
+
+void sqrt_cmp();
+void hw4_grad1_grad2_shenjun();
+void hw4_num_dect();
 
 
-
-void opencv_guass_blur();
+void test();
