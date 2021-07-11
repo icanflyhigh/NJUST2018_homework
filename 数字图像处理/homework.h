@@ -17,5 +17,19 @@ void sqrt_cmp();
 void hw4_grad1_grad2_shenjun();
 void hw4_num_dect();
 
-
+void hw5_otsu();
+void hw5_ImgSegmentation1();
+void hw5_ImgSegmentation2();
+void hw5_ImgSegmentation3();
+void hw5_kmeans_1();
+void hw5_kmeans_2();
+void hw5_kmeans_3();
 void test();
+
+void hw6_hough_1();
+void hw6_hough_2();
+void hw6_circle_1();
+void hw6_ChainCode_fill();
+void hw6_expand_fcorrosion33();
+void hw6_airport();
+void hw6_t1_draw();

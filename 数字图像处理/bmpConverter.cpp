@@ -5,12 +5,21 @@
 #include <iostream>
 #include <algorithm>
 #include <nmmintrin.h>
+#include <ctime>
 #include "Img.h"
 #include "switcher.h"
 #include "BMPCore.h"
 #define BTYE BYTE
 using namespace std;
-const double pi = 3.1415926535;
+const float fEPS = 1e-6;
+const double dEPS = 1e-10;
+const double PI = 3.1415926535;
+const double EPS = 1e-9;
+const int INF = 1e9 + 7;
+void setImageBoundary(BYTE *pBinImg, int width, int height, BYTE color);
+
+
+
 bmpConverter::bmpConverter(const char * orgfile)
 {
 	if (!BmpFile2Img(orgfile))
@@ -48,7 +57,7 @@ bool bmpConverter::BmpFile2Img(const char * DstFile)
 {
 	
 	delete pImg;
-		
+	pImg = nullptr;
 	//BmpHeader记录的真实的宽度,
 	//读出的是真实的宽度,去掉了4对齐的扩展.
 	FILE *fp;
@@ -184,11 +193,19 @@ void getBord(BYTE * board, char mod = 0)
 	{
 		for (i = 0; i < 256; i++)
 		{
-			
-			board[p++] = 255 - i;
+
+			if (i != 254)
+			{
+				board[p++] = i;//blue,green,red, alpha
+				board[p++] = i;
+			}
+			else
+			{
+				board[p++] = 0;
+				board[p++] = 0;
+			}
 			board[p++] = i;
-			board[p++] = i; //blue,green,red, alpha
-			board[p++] = 0;
+			board[p++] = i;
 			//if (fwrite((void *)p, 1, 4, fp) != 4) { Suc = false; break; }
 		}
 	}
@@ -264,7 +281,7 @@ bool bmpConverter::Img28bitBmp(const char * DstFile, char mod)
 	}
 	// return;
 	fclose(fp);
-	if (Suc)printf("%s 保存成功", DstFile);
+	if (Suc)printf("%s 保存成功\n", DstFile);
 	return Suc;
 }
 // 24bit转bmp
@@ -316,7 +333,7 @@ bool bmpConverter::Img224bitBmp(const char * DstFile)
 	}
 	// return;
 	fclose(fp);
-	if (Suc)printf("%s 保存成功", DstFile);
+	if (Suc)printf("%s 保存成功\n", DstFile);
 	return Suc;
 }
 
@@ -364,7 +381,7 @@ void bmpConverter::PHistogramEqualize14bit2(short * pRawImg)
 bool bmpConverter::read14bitRaw(const char * DstFile)
 {
 	delete pImg;
-
+	pImg = nullptr;
 	width = 640, height = 480, channel = 1;
 	BmpHeader.biBitCount = 8;
 	FILE *fp;
@@ -1368,6 +1385,7 @@ void bmpConverter::shrink16(BYTE *pSrcImg, int width, int height, BYTE *pDstImg)
 
 }
 
+
 void getMaxAreaCalGraph(int *pSum, int m, int n, int width, int height, int &mx, int &my)
 {
 	int *pY1, *pY2, *pY3;
@@ -1518,29 +1536,1132 @@ Img bmpConverter::AEadgeCanny2d1c(double sigma, int Fsize, int uBound, int lBoun
 		return Img(pDstImg, width, height);
 	}
 }
-void bmpConverter::test()
+
+
+//________hw5___________________
+void bmpConverter::PBinOtsu2d1c()
 {
+	int *hist = new int[256];
+	int thres, pixelNum = width * height;
 
-// 缩小
-// 得到边缘强度
-// 积分图
-// 得到最大强度区域
-// 放大
+	getHist8b(pImg, pixelNum, hist);
+	clock_t start = clock();
+	for(int i = 0 ; i< 10000; i++)
+	thres = getOtsuThreshold8b(hist, 256);
+	clock_t end = clock();
+	cout << "1： " << end - start<<endl;
+	start = clock();
+	for (int i = 0; i < 10000; i++)
+	thres = RmwGetOtsuThreshold(hist, 256);
+	end = clock();
+	cout << "2： " << end - start << endl;
 
-	BYTE *pDstImg, *pTmpImg, *pSrcImg, *pOrgImg, *pTansImg;
-	int *dx, *dy;
-	int Fsize, uBound, lBound;
-	BYTE threshold;
-	double sigma;
+	PGry2Bin(pImg, pixelNum, thres, pImg);
 
-	pDstImg = new BYTE[height * width];
-	double pFilter[]{
-		1 , 1 , 1 ,
-		1 , -8 , 1 ,
-		1 , 1 , 1 , };
-	for (int i = 0; i < 9; i++)pFilter[i] *= -1;
-	AConv2d3_8bit(pImg, width, height, pFilter, pDstImg);
-	pImg = pDstImg;
-	Img2Bmp("./pic/tree6.bmp");
+	delete[] hist;
+}
+
+void bmpConverter::AAvgSmooth1d(int * hist, int width, int filterSize, int *dstHist)
+{
+	if (width < filterSize)return;
+
+	filterSize |= 1;
+	const int half = filterSize / 2;
+	int *pCur = hist + half, *pEnd = hist - half + width, *pDst = dstHist + half;
+	int sum = *(pCur - half) - *(pCur + half) + *pCur;
+	int i;
+	for (i = 1; i <= half; i++)
+	{
+		sum += pCur[i] + pCur[-i];
+		dstHist[i - 1] = hist[i - 1];
+		dstHist[ width - i] = hist[width - i];
+		cout << dstHist[width - i] << endl;
+	}
+	
+	for (; pCur < pEnd; pCur++)
+	{
+		sum += *(pCur + half) - *(pCur - half);
+		*pDst++ = sum / filterSize; cout << "pdst: " << *(pDst - 1) << endl;
+	}
 
 }
+
+
+
+void bmpConverter::BinOtsu_test()
+{
+#if 1
+	int *imem = new int[512];
+	int *hist = imem, *smoothed_hist = hist + 256;
+	int thres, pixelNum = width * height;
+
+	getHist8b(pImg, pixelNum, hist);
+	//smoothed_hist = hist;
+	AAvgSmooth1d(hist, 256, 5, smoothed_hist);
+	thres = getOtsuThreshold8b(smoothed_hist, 256);
+	cout << "thres: " << thres << endl;
+
+	PGry2Bin(pImg, pixelNum, thres, pImg);
+#else
+	int *imem = new int[512];
+	int *hist = imem, *scale_hist = hist + 256;
+	int thres, pixelNum = width * height;
+
+	memset(scale_hist, 0, sizeof(int) * 256);
+	getHist8b(pImg, pixelNum, hist);
+	for (int i = 0; i < 256; i++)scale_hist[i / 4] += hist[i];
+	thres = getOtsuThreshold8b(scale_hist, 256);
+	cout << "thres: " << thres << endl;
+	PGry2Bin(pImg, pixelNum, thres, pImg);
+#endif // 1
+
+	delete[] imem;
+
+}
+
+
+void bmpConverter::task_ImgSegmentation1()
+{	
+	// 在程序当中都采用了统一先将内存开够，再分配内存的思想；
+	// 目的是增加内存的利用率，减少碎片，。
+
+	double sigma = 3;
+	int pixelNum = height * width, Fsize = 3 * sigma + 1 + EPS;
+	BYTE * bMem = new BYTE[width * height * 3];
+	BYTE *pBkgImg = bMem, *pTmpImg = pBkgImg + pixelNum, *pMinImg = pTmpImg + pixelNum;
+	int Filter[256], hist[256];
+	int threshold;
+	
+	// 最小值滤波
+	AMinFilter(pImg, width, height, 3, 3, pMinImg);
+	// 得到背景,光照估计
+	GuassianBlur(pMinImg, pTmpImg, width, height, sigma, Fsize, Filter, pBkgImg);
+	// 相减，图像减法
+	for (int i = 0; i < pixelNum; i++)
+	{
+		pTmpImg[i] = (max)(0, pImg[i] - pBkgImg[i]);
+	}
+	// Otsu二值化
+	getHist8b(pTmpImg, pixelNum, hist);
+	threshold = getOtsuThreshold8b(hist, 256);
+	PGry2Bin(pTmpImg, pixelNum, threshold, pImg);
+	//PMaxFilter(pTmpImg, width, height, 3, 3, pImg);
+
+	delete[] bMem;
+}
+
+double MultiSegJudge1(BYTE *pSrcImg, int width, int height, BYTE *pTmpImg)
+{
+	// 评价函数2个标准，1.评价环线  2.评价弹孔
+	// 主要的目标应该是将背景和其他两个分开
+	unsigned int eval = 0;
+	BYTE *pCur = pSrcImg + width - 1;
+	int x, y, bCur;
+	for (y = 1; y < height - 1; y++)
+	{
+		pCur += 2;
+		for (x = 1; x < width - 1; x++)
+		{
+			// 检查当前点与周围点的梯度
+			bCur = *pCur++;
+			// 使用异或代替相减取绝对值的运算
+			eval += ((bCur ^ pCur[-1]) + (bCur ^ pCur[1]) + (bCur ^ pCur[-width]) + (bCur ^ pCur[width])) >> 7;
+		}  // x
+	}  // y
+	
+	return eval;
+}
+
+double MultiSegJudge2(BYTE *pSrcImg, int width, int height, BYTE *pTmpImg)
+{
+	
+	return 0.0;
+}
+
+
+// 点运算,将区间内的颜色变化到指定颜色
+void PColorTrans(BYTE *pSrcImg, int PixelNum, BYTE lowB, BYTE upB, BYTE TargetBry, BYTE *pDstImg)
+{
+	BYTE *pCur = pSrcImg, *pEnd = pCur + PixelNum, *pDst = pDstImg;
+
+	while (pCur < pEnd)
+	{
+		if (*pCur >= lowB && *pCur <= upB)
+		{
+			*pDst = TargetBry;
+		}
+		*pCur++, pDst++;
+	}
+
+}
+
+// 多次分割法
+void bmpConverter::task_ImgSegmentation2()
+{
+	int i;
+	int PixelNum = width * height;
+	int step1 = 16, step2 = 1;
+	int hist[256];
+	BYTE *bMem = new BYTE[PixelNum];
+	BYTE *pTmpImg = bMem;
+	int hmin = 0, hmax = 255;
+	BYTE threshold1 = 0, threshold2 = 50;  // 两类的阈值
+	double opt1 = -1, opt2 = -1, jval;  // 最优值
+
+	getHist8b(pImg, PixelNum, hist);
+	for (; hmin < 256 && !hist[hmin]; hmin++);
+	for (; hmax > -1 && !hist[hmax]; hmax--);
+	// 跨度为step1的粗搜索
+	for (i = hmin + 1; i < hmax; i += step1)
+	{
+		PGry2Bin(pImg, PixelNum, i, pTmpImg);
+		jval = MultiSegJudge1(pTmpImg, width, height, pTmpImg);
+		if (jval > opt1)
+		{
+			opt1 = jval;
+			threshold1 = i;
+		}
+	}
+	// 跨度为step2的精搜索
+	for (i = (max)(hmin + 1, threshold1 - step1); i < (min)(hmax, threshold1 + step1); i += step2)
+	{
+		PGry2Bin(pImg, PixelNum, i, pTmpImg);
+		jval = MultiSegJudge1(pTmpImg, width, height, pTmpImg);
+		if (jval > opt1)
+		{
+			opt1 = jval;
+			threshold1 = i;
+		}
+	}
+	// threshold1 = 170;
+	//memset(pTmpImg, -1, sizeof(pTmpImg[0]) * PixelNum);
+	PColorTrans(pImg, PixelNum, 0, threshold2, 0, pTmpImg);
+	PColorTrans(pImg, PixelNum, threshold2 + 1, threshold1, 128, pTmpImg);
+	PColorTrans(pImg, PixelNum, threshold1 + 1, 255, 255, pTmpImg);
+	memcpy(pImg, pTmpImg, sizeof(pTmpImg[0]) * PixelNum);
+
+	delete[] bMem;
+}
+
+
+void bmpConverter::task_ImgSegmentation4()
+{
+
+	int i, g;
+	double dist;
+	int hist[256], LUT[256], Filter[256], color[]{ 0, 128, 255 };
+	double Center[3];
+	double bound = 3, sigma = 3;
+	int PixelNum = width * height, max_iter = 100, Fsize = 3 * sigma + 1 + EPS, k = 3;
+	BYTE *bMem = new BYTE[PixelNum * 3];
+	BYTE *pBkgImg = bMem, *pTmpImg = pBkgImg + PixelNum, *pMinImg = pTmpImg + PixelNum;
+	BYTE *pCur = pTmpImg, *pEnd = pCur + PixelNum, *pDst = pImg, *pHistSrc = pTmpImg;
+
+	// 最小值滤波
+	AMinFilter(pImg, width, height, 3, 3, pMinImg);
+	// 得到背景,光照估计
+	GuassianBlur(pMinImg, pTmpImg, width, height, sigma, Fsize, Filter, pBkgImg);
+	// 相减，图像减法
+	for (int i = 0; i < PixelNum; i++)
+	{
+		pTmpImg[i] = (max)(0, pImg[i] - pBkgImg[i]);
+	}
+	// 获得直方图
+	getHist8b(pHistSrc, PixelNum, hist);
+	// k-means聚类
+	Hist_kMeans(hist, 256, k, Center, bound, max_iter);
+	g = 0;
+	for (i = 0; i < 256; i++)
+	{
+		dist = 1024.0;
+		for (g = 0; g < k; g++)
+		{
+			if (dist > abs(i - Center[g]))
+			{
+				dist = abs(i - Center[g]);
+				LUT[i] = color[g];
+			}
+		}  // g
+	}  // i
+	//pCur = pTmpImg, pDst = pImg;
+
+	while (pCur < pEnd)
+		*pDst++ = LUT[*pCur++];
+
+	delete[] bMem;
+
+}
+
+void bmpConverter::k_meansThreshold(int k)
+{
+	if (k <= 1 && k > 254)return;
+	int i, g, step;
+	double dist;
+	int hist[256], LUT[256], color[256];
+	double Center[256];
+	double bound = 3.0;
+	int PixelNum = width * height, max_iter = 100;
+	BYTE *bMem = new BYTE[PixelNum];
+	BYTE *pTmpImg = bMem;
+	BYTE *pCur = pImg, *pEnd = pCur + PixelNum, *pDst = pImg;
+
+	// 初始化颜色
+	step = 255 / (k - 1);
+	for (i = 0, g = 0; i < k; i++, g += step)color[i] = g;
+	// 获得直方图
+	getHist8b(pImg, PixelNum, hist);
+	// k-means聚类
+	Hist_kMeans(hist, 256, k, Center, bound, max_iter);
+	//for (i = 0; i < k; i++)
+	//{
+	//	printf("threshold[%d]: %lf\n", i + 1, Center[i]);
+	//}
+	g = 0;
+	for (i = 0; i < 256; i++)
+	{
+		if (!hist[i])continue;
+		dist = 1024.0;
+		for (g = 0; g < k; g++)
+		{
+			if (dist > abs(i - Center[g]))
+			{
+				dist = abs(i - Center[g]);
+				LUT[i] = color[g];
+			}
+		}
+	}
+	while (pCur < pEnd)
+	{
+		*pDst++ = LUT[*pCur++];
+	}
+
+	delete[] bMem;
+}
+// 聚类分割法
+void bmpConverter::task_ImgSegmentation3()
+{
+	int i, g;
+	double dist;
+	int hist[256], LUT[256], color[]{ 0, 128, 255 };
+	double Center[3];
+	double bound = 3;
+	int PixelNum = width * height, max_iter = 100, k = 3;
+	BYTE *pCur = pImg, *pEnd = pCur + PixelNum, *pDst = pImg, *pHistSrc = pImg;
+
+	// 获得直方图
+	getHist8b(pHistSrc, PixelNum, hist);
+	// k-means聚类
+	Hist_kMeans(hist, 256, k, Center, bound, max_iter);
+	g = 0;
+	for (i = 0; i < 256; i++)
+	{
+		dist = 1024.0;
+		for (g = 0; g < k; g++)
+		{
+			if (dist > abs(i - Center[g]))
+			{
+				dist = abs(i - Center[g]);
+				LUT[i] = color[g];
+			}
+		}
+	}
+	//pCur = pTmpImg, pDst = pImg;
+	
+	while (pCur < pEnd)
+		*pDst++ = LUT[*pCur++];
+}
+//____________hw6___________________________________________
+// 得到边缘
+void ZEdgDetect(BYTE *pSrcImg, int width, int height, int *X, int *Y, int &n)
+{
+	BYTE *pCur = pSrcImg, *pY = pSrcImg, *pX = pSrcImg;
+	int y, x;
+
+	n = 0;
+	for (y = 0; y < height; y++, pY += width)
+	{
+		pCur = pY;
+		for (x = 0; x < width; x++, pCur++)
+		{
+			if (!*pCur)
+			{
+				X[n] = x;
+				Y[n++] = y;
+				break;
+			}
+		}  // x
+		pCur = pY + width - 1;
+		for (x = width - 1; x >= 0; x--, pCur--)
+		{
+			if (!*pCur)
+			{
+				X[n] = x;
+				Y[n++] = y;
+				break;
+			}
+		}  // x
+		
+	}  // y
+
+	for (x = 0; x < width; x++, pX += 1)
+	{
+		pCur = pX;
+		for (y = 0; y < height; y++, pCur += width)
+		{
+			if (!*pCur)
+			{
+				X[n] = x;
+				Y[n++] = y;
+				break;
+			}
+		}  // y
+		pCur = pX + (height - 1) * width;
+		for (y = height- 1; y >= 0; y--, pCur -= width)
+		{
+			if (!*pCur)
+			{
+				X[n] = x;
+				Y[n++] = y;
+				break;
+			}
+		}  // y
+
+	}  // x
+
+
+}
+// 将无符号int映射到BYTE上
+void transUI2B256(int *pSrc, BYTE *pDst, int num)
+{
+	int mx = *pSrc, mn = *pSrc;
+	double c;
+	int i;
+	// 得到最大，最小值，然后做映射
+	for (i = 1; i < num; i++)
+	{
+		int isrc = pSrc[i];
+		if (isrc > mx)
+		{
+			mx = isrc;
+		}
+		else if (isrc < mn)
+		{
+			mn = isrc;
+		}
+	}
+	// 对数映射
+	c = 256.0 / log(mx - mn + 1 + EPS);
+
+	for (i = 0; i < num; i++)
+	{
+		pDst[i] = (log(pSrc[i] - mn + 1 + EPS) * c);
+		//if(pDst[i])
+		//pDst[i] = (min)(255, pDst[i] + 25);
+	}
+}
+void hough_max_search1(int *pCount, int maxThro, double *A, double *B, double *C)
+{
+	int *pCur;
+	int maxCount, bstTheta, bstThro;
+	int threThro = 30, threTheta = 5, mxTho, mnTho;
+	int theta, thro, i, deg;
+	// 最大值搜索
+	maxCount = bstTheta = bstThro = 0;
+	for (theta = 0, pCur = pCount; theta < 180; theta++)
+	{
+		for (thro = 0; thro < maxThro * 2; thro++, pCur++)
+		{
+			if (*pCur > maxCount)
+			{
+				maxCount = *pCur;
+				bstTheta = theta;
+				bstThro = thro;
+
+			}
+		}
+	}
+	
+	// 排出最优直线周围直线
+	mnTho = (max)(0, bstThro - threThro), mxTho = (min)(2 * maxThro, bstThro + threThro);
+	for (deg = 180 + bstTheta - threTheta, pCur = pCount + deg * 2 * maxThro; 
+		deg <= 180; 
+		deg++, pCur += 2 * maxThro)
+	{
+		for (i = maxThro * 2 + bstThro - threThro; i <= maxThro * 2; i++)
+			pCur[i] = 0;
+		for (i = mnTho; i <= mxTho; i++)
+			pCur[i] = 0;
+		for (i = 0; i <= bstThro + threThro - maxThro * 2; i++)
+			pCur[i] = 0;
+	}
+	for (deg = (max)(0, bstTheta - threTheta), pCur = pCount + deg * 2 * maxThro; 
+		deg <= (min)(180, bstTheta + threTheta); 
+		deg++, pCur += 2 * maxThro)
+	{
+		for (i = maxThro * 2 + bstThro - threThro; i <= maxThro * 2; i++)
+			pCur[i] = 0;
+		for (i = mnTho; i <= mxTho; i++)
+			pCur[i] = 0;
+		for (i = 0; i <= bstThro + threThro - maxThro * 2; i++)
+			pCur[i] = 0;
+	}
+	for (deg = 0, pCur = pCount + deg * 2 * maxThro;
+		deg <= bstTheta + threTheta - 180; 
+		deg++, pCur += 2 * maxThro)
+	{
+		for (i = maxThro * 2 + bstThro - threThro; i <= maxThro * 2; i++)
+			pCur[i] = 0;
+		for (i = mnTho; i <= mxTho; i++)
+			pCur[i] = 0;
+		for (i = 0; i <= bstThro + threThro - maxThro * 2; i++)
+			pCur[i] = 0;
+	}
+
+
+	pCount[bstTheta * maxThro * 2 + bstThro] = 0;
+	
+	bstThro -= maxThro; //去掉偏移maxThro
+	//x*cos(bstTheta)+y*sin(bstTheta)=bstThro => Ax+By+C=0
+	A[0] = cos(bstTheta * PI / 180);
+	B[0] = sin(bstTheta * PI / 180);
+	C[0] = -bstThro;
+}
+// 霍夫检测四边形，逐个
+void bmpConverter::HoughLine1()
+{
+	int PixelNum = width * height, pXSize = 2 * width + 2 * height;
+	int maxThro = (int)sqrt(1.0*width*width + height * height + 0.5) + 1;
+	BYTE *bMem = new BYTE[width * height + maxThro * 360];
+	BYTE *pOrgImg = bMem, *pShowImg = pOrgImg + PixelNum;
+	int *iMem = new int[width * height * 2 + 2 * pXSize + maxThro * 360];
+	int *pX = iMem, *pY = pX + pXSize, num;
+	int *pCount = pY + pXSize;
+	double A[4], B[4], C[4];
+	int i;
+
+	memcpy(pOrgImg, pImg, sizeof(pOrgImg[0]) * PixelNum);
+	//获得边缘
+	ZEdgDetect(pImg, width, height, pX, pY, num); 
+	memset(pOrgImg, -1, sizeof(*pOrgImg) * PixelNum);
+	for (i = 0; i < num; i++)
+	{
+		pOrgImg[pY[i] * width + pX[i]] = 0;
+	}
+	drawImg("./pic/H0602Bin_edg.bmp", pOrgImg, width, height);
+	HoughLine(pImg, width, height, pCount, pX, pY, num);
+	transUI2B256(pCount, pShowImg, maxThro * 360);
+	drawImg("./pic/Gry.bmp", pShowImg, maxThro * 2, 180);
+	// 最大值搜索
+	for (i = 0; i < 4; i++)
+	{
+		hough_max_search1(pCount, maxThro, A + i, B + i, C + i);
+		DrawABCLine(pImg, width, height, A[i], B[i], C[i], 0);
+	}
+
+	delete[] bMem;
+	delete[] iMem;
+}
+
+// 遍历更新
+inline void MarginTraverse(int *pCur, int *curRho, int maxThro, int threThro, int ThroGap)
+{
+	int rho, rho1, mx = 0;
+	int mxThro2 = 2 * maxThro;
+	for (rho = 0; rho < maxThro * 2 - ThroGap + threThro; rho++)
+	{
+		for (rho1 = (max)(0, rho + ThroGap - threThro); rho1 < (min)(mxThro2, rho + ThroGap + threThro); rho1++)
+		{
+			//printf("rho1: %d  %d   %d %d\n", rho1, mxThro2, rho + ThroGap + threThro, (min)(mxThro2, rho + ThroGap + threThro));
+			if (pCur[rho] + pCur[rho1] > mx)
+			{
+				mx = pCur[rho] + pCur[rho1];
+				curRho[0] = rho;
+				curRho[1] = rho1;
+			}
+		}  // rho1
+	}  // rho
+}
+
+// 联合求取最大值
+void hough_max_search2(int *pCnt, int maxThro, double *A, double *B, double *C)
+{
+	int threThro = 10, threTheta = 5, mxTho, mnTho;
+	int ThroGap = 230, ThetaGap = 90, mxThro2 = 2 * maxThro;
+	int sum = 0, mxsum = 0;
+	int optRho[4]{ 0, 0, 0, 0 }, optTheta[4]{ 0, 0, 0, 0 };
+	int curRho[4], curTheta[4];
+	int *pCur, *pCur1;
+	int theta, theta1, rho, rho1, i;
+	// 死循环了
+
+	for (theta = 0; theta < 75; theta++)
+	{
+		int mx = 0, mx2 = 0, sum1 = 0;
+		// 寻找最大rho0 + rho1
+		pCur = pCnt + theta * 2 * maxThro;
+		MarginTraverse(pCur, curRho, maxThro, threThro, ThroGap);
+		//printf("rho2, rho3\n");
+		// 寻找最大rho2 + rho3
+		for (theta1 = theta + ThetaGap; theta1 < theta + ThetaGap + threTheta - 180; theta1++)
+		{
+			pCur1 = pCnt + theta1 * 2 * maxThro;
+			MarginTraverse(pCur1, curRho + 2, maxThro, threThro, ThroGap);
+			sum1 = pCur1[curRho[2]] + pCur1[curRho[3]] + pCur[curRho[0]] + pCur[curRho[1]];
+			if (sum1 > mxsum)
+			{
+				mxsum = sum1;
+				optRho[0] = curRho[0];
+				optRho[1] = curRho[1];
+				optRho[2] = curRho[2];
+				optRho[3] = curRho[3];
+				optTheta[0] = optTheta[1] = theta;
+				optTheta[2] = optTheta[3] = theta1;
+			}
+		}
+		//printf("seg 1\n");
+		for (theta1 = theta + ThetaGap - threTheta; theta1 < (min)(180, theta + ThetaGap + threTheta); theta1++)
+		{
+			pCur1 = pCnt + theta1 * 2 * maxThro;
+			MarginTraverse(pCur1, curRho + 2, maxThro, threThro, ThroGap);
+			sum1 = pCur1[curRho[2]] + pCur1[curRho[3]] + pCur[curRho[0]] + pCur[curRho[1]];
+			if (sum1 > mxsum)
+			{
+				mxsum = sum1;
+				optRho[0] = curRho[0];
+				optRho[1] = curRho[1];
+				optRho[2] = curRho[2];
+				optRho[3] = curRho[3];
+				optTheta[0] = optTheta[1] = theta;
+				optTheta[2] = optTheta[3] = theta1;
+
+			}
+		}
+
+
+	}  // theta
+
+	for (i = 0; i < 4; i++)
+	{
+		//printf("rho: %d  theta: %d   maxThro: %d\n", optRho[i], optTheta[i], maxThro);
+		//printf("val %d\n", pCnt[optTheta[i] * mxThro2 + optRho[i]]);
+		optRho[i] -= maxThro; //去掉偏移maxThro
+//x*cos(bstTheta)+y*sin(bstTheta)=bstThro => Ax+By+C=0
+		A[i] = cos(optTheta[i] * PI / 180);
+		B[i] = sin(optTheta[i] * PI / 180);
+		C[i] = -optRho[i];
+	}
+	
+}
+// 一个简单的画出图像的函数
+void bmpConverter::drawImg(const char * strDst, BYTE *pSrcImg, int w, int h)
+{
+	swap(pSrcImg, pImg);
+	swap(w, width);
+	swap(h, height);
+	
+	Img2Bmp(strDst, 8, 'k');
+
+	swap(pSrcImg, pImg);
+	swap(w, width);
+	swap(h, height);
+
+}
+
+// 霍夫检测四边形，同时
+void bmpConverter::HoughLine2()
+{
+	int PixelNum = width * height, pXSize = 2 * width + 2 * height;
+	int maxThro = (int)sqrt(1.0*width*width + height * height + 0.5) + 1;
+	BYTE *bMem = new BYTE[PixelNum + maxThro * 360];
+	BYTE *pOrgImg = bMem, *pShowImg = pOrgImg + PixelNum;
+	int *iMem = new int[width * height * 2 + 2 * pXSize + maxThro * 360];
+	int *pX = iMem, *pY = pX + pXSize, num;
+	int *pCount = pY + pXSize;
+	double A[4], B[4], C[4];
+	int i;
+
+	//获得边缘
+	ZEdgDetect(pImg, width, height, pX, pY, num);
+	memset(pOrgImg, -1, sizeof(*pOrgImg) * PixelNum);
+	for (i = 0; i < num; i++)
+	{
+		pOrgImg[pY[i] * width + pX[i]] = 0;
+	}
+	drawImg("./pic/_edg.bmp", pOrgImg, width, height);
+	HoughLine(pImg, width, height, pCount, pX, pY, num);
+
+	//transUI2B256(pCount, pShowImg, maxThro * 360);
+	//drawImg("./pic/Gry.bmp", pShowImg, maxThro * 2, 180);
+
+	// 最大值搜索
+	hough_max_search2(pCount, maxThro, A, B, C);
+	for (i = 0; i < 4; i++)
+	{
+		printf("A: %lf   B: %lf  c:%lf\n", A[i], B[i], C[i]);
+		DrawABCLine(pImg, width, height, A[i], B[i], C[i], 0);
+	}
+		
+
+	delete[] bMem;
+	delete[] iMem;
+}
+
+// 计算dw
+int wideCount(BYTE *pSrcImg, int *wCount, int width, int height)
+{
+	BYTE *pCur = pSrcImg, optW = 10;
+	int x, y, prex = 0, mxDst = -1, dst;
+	int i;
+
+	memset(wCount, 0, sizeof(*wCount) * (max)(width, height));
+
+	for (y = 0; y < height; y++, pCur += width)
+	{
+		prex = -1;
+		for (x = 0; x < width; x++)
+		{
+			if (pCur[x])
+			{
+				if (prex != -1)
+				{
+					dst = x - prex;
+					wCount[dst]++;
+					if (dst > mxDst)
+						mxDst = dst;
+					
+				}
+					
+				prex = x;
+			}
+		}
+	}
+	for (i = 2; i < mxDst; i++)
+	{
+		if (wCount[i] > wCount[i - 1])
+		{
+			optW = i;
+			break;
+		}
+	}
+	return optW;
+}
+
+// 得到相关点
+int getCorPoint(BYTE *pSrcImg, int width, int height, int *pX, int *pY, int optW)
+{
+	BYTE *pCur = pSrcImg;
+	int x, y, prex = 0, mxDst = -1, dst;
+	int *pCurX = pX, *pCurY = pY;
+	int cnt = 0;
+	for (y = 0; y < height; y++, pCur += width)
+	{
+		prex = -999;
+		for (x = 0; x < width; x++)
+		{
+			if (pCur[x])
+			{
+				if ((x - prex - optW) < 4 && (x - prex - optW) > -4)
+				{
+					cnt++;
+					*pCurX++ = prex;
+					//*pCurX++ = x;
+					//*pCurY++ = y;
+					*pCurY++ = y;
+				}
+				prex = x;
+			}
+		}
+	}
+	return cnt;
+}
+
+void getMostSuitableTrack(int *pLineCount, int maxRho, int optW, double *A, double *B, double *C)
+{
+	int *pCur;
+	int maxCount, bstTheta, bstThro;
+	int threThro = 30, threTheta = 5, mxTho, mnTho;
+	int theta, thro, i, deg, gap;
+	// 最大值搜索
+	maxCount = bstTheta = bstThro = 0;
+	for (theta = 0, pCur = pLineCount; theta < 180; theta++)
+	{
+		for (thro = 0; thro < maxRho * 2; thro++, pCur++)
+		{
+			if (*pCur> maxCount)
+			{
+				maxCount = *pCur;
+				bstTheta = theta;
+				bstThro = thro;
+
+			}
+		}
+	}
+	cout << maxCount << endl;
+	// 排出最优直线周围直线
+	mnTho = (max)(0, bstThro - threThro), mxTho = (min)(2 * maxRho, bstThro + threThro);
+	for (deg = 180 + bstTheta - threTheta, pCur = pLineCount + deg * 2 * maxRho;
+		deg <= 180;
+		deg++, pCur += 2 * maxRho)
+	{
+		for (i = maxRho * 2 + bstThro - threThro; i <= maxRho * 2; i++)
+			pCur[i] = 0;
+		for (i = mnTho; i <= mxTho; i++)
+			pCur[i] = 0;
+		for (i = 0; i <= bstThro + threThro - maxRho * 2; i++)
+			pCur[i] = 0;
+	}
+	for (deg = (max)(0, bstTheta - threTheta), pCur = pLineCount + deg * 2 * maxRho;
+		deg <= (min)(180, bstTheta + threTheta);
+		deg++, pCur += 2 * maxRho)
+	{
+		for (i = maxRho * 2 + bstThro - threThro; i <= maxRho * 2; i++)
+			pCur[i] = 0;
+		for (i = mnTho; i <= mxTho; i++)
+			pCur[i] = 0;
+		for (i = 0; i <= bstThro + threThro - maxRho * 2; i++)
+			pCur[i] = 0;
+	}
+	for (deg = 0, pCur = pLineCount + deg * 2 * maxRho;
+		deg <= bstTheta + threTheta - 180;
+		deg++, pCur += 2 * maxRho)
+	{
+		for (i = maxRho * 2 + bstThro - threThro; i <= maxRho * 2; i++)
+			pCur[i] = 0;
+		for (i = mnTho; i <= mxTho; i++)
+			pCur[i] = 0;
+		for (i = 0; i <= bstThro + threThro - maxRho * 2; i++)
+			pCur[i] = 0;
+	}
+
+
+	pLineCount[bstTheta * maxRho * 2 + bstThro] = 0;
+
+	bstThro -= maxRho; //去掉偏移maxRho
+	//x*cos(bstTheta)+y*sin(bstTheta)=bstThro => Ax+By+C=0
+	*A = cos(bstTheta * PI / 180);
+	*B = sin(bstTheta * PI / 180);
+	*C = -bstThro;
+}
+
+void bmpConverter::air_port_track_dect()
+{
+	const int PixelNum = width * height, pXSize = 2 * width + 2 * height;
+	const int maxRho = (int)sqrt(1.0*width*width + height * height + 0.5) + 1;
+	const int mxRho2 = maxRho * 2;
+	int *iMem = new int[(max)(width, height) + mxRho2 * 180 + PixelNum];
+	BYTE *bMem = new BYTE[PixelNum];
+	BYTE *pShowImg = bMem;
+	int *pWCount = iMem, *pLineCount = pWCount + (max)(width, height);
+	int *pX = pLineCount + mxRho2 * 180, *pY = pX + PixelNum / 2, pointNum;
+	double A[4], B[4], C[4];
+	int optW = 0;
+	int i;
+
+	// 计算dw
+	optW = wideCount(pImg, pWCount, width, height);
+
+	for (i = 0; i < 100; i++)
+	{
+		printf("pwCount%d: %d\n", i, pWCount[i]);
+	}
+	printf("optW: %d\n", optW);
+	optW = 23;
+	 //pWCount[optW];
+	pointNum = getCorPoint(pImg, width, height, pX, pY, optW);
+	memset(pShowImg, -1, sizeof(*pShowImg) * PixelNum);
+	for (i = 0; i < pointNum; i++)
+	{
+		pShowImg[width * pY[i] + pX[i]] = 0;
+	}
+	drawImg("./pic/dot.bmp", pShowImg, width, height);
+	// 得到直线的counter
+	HoughLine(pImg, width, height, pLineCount, pX, pY, pointNum);
+	// 求最合适直线
+	for (i = 0; i < 4; i++)
+	{
+		getMostSuitableTrack(pLineCount, maxRho, optW, A + i, B + i, C + i);
+		DrawABCLine(pImg, width, height, A[i], B[i], C[i], 254);
+		DrawABCLine(pShowImg, width, height, A[i], B[i], C[i], 254);
+		printf("A: %lf B: %lf  C: %lf\n", A[i], B[i], C[i]);
+		// 计算右侧的直线
+		A[i + 1] = A[i];
+		B[i + 1] = B[i];
+		C[i + 1] = C[i++] - A[i] * optW;
+		printf("A: %lf B: %lf  C: %lf\n", A[i], B[i], C[i]);
+		DrawABCLine(pImg, width, height, A[i], B[i], C[i], 254);
+		DrawABCLine(pShowImg, width, height, A[i], B[i], C[i], 254);
+	}
+	drawImg("./pic/dst2.bmp", pShowImg, width, height);
+	
+}
+
+void bmpConverter::hw6_draw(int x, int y)
+{
+	int PixelNum = width * height;
+	BYTE *pCur = pImg + width / 2;
+	int theta = -90, rho;
+
+	memset(pImg, -1, sizeof(*pImg) * PixelNum);
+	for (theta = -90; theta <= 90; theta++, pCur += 2 * width)
+	{
+		rho = sin(theta * PI / 180) * y + cos(theta * PI / 180) * x;
+		pCur[rho] = 0;
+	}
+}
+
+// 获得x，y的均值
+void getMidXY(BYTE *pSrcImg, int *pCntX, int *pCntY, int width, int height, int &CX, int &CY)
+{
+	int *pCnt;
+	BYTE *pCur, *pY, *pX;
+	int x, y;
+
+	pCnt = pCntX;
+	memset(pCnt, 0, sizeof(*pCnt) * width);
+	for (y = 0, pY = pSrcImg; y < height; y++, pY += width)
+	{
+		pCur = pY;
+		int tx1 = 0, tx2 = 0;
+		for (x = 0; x < width; x++, pCur++)
+		{
+			if (!*pCur)
+			{
+				tx1 = x;
+				break;
+			}
+		}  // x
+		pCur = pY + width - 1;
+		for (x = width - 1; x >= 0; x--, pCur--)
+		{
+			if (!*pCur)
+			{
+				tx2 = x;
+				break;
+			}
+		}  // x
+		pCnt[(tx1 + tx2 + 1) >> 1]++;
+	}  // y
+	// 得到最大值
+	CX = 0;
+	for (x = 1; x < width; x++)
+	{
+		if (pCnt[x] > pCnt[CX])
+			CX = x;
+	}
+	pCnt = pCntY;
+	memset(pCnt, 0, sizeof(*pCnt) * height);
+	for (x = 0, pX = pSrcImg; x < width; x++, pX += 1)
+	{
+		pCur = pX;
+		int ty1 = 0, ty2 = height;
+		for (y = 0; y < height; y++, pCur += width)
+		{
+			if (!*pCur)
+			{
+				ty1 = y;
+				break;
+			}
+		}  // y
+		pCur = pX + (height - 1) * width;
+		for (y = height - 1; y >= 0; y--, pCur -= width)
+		{
+			if (!*pCur)
+			{
+				ty2 = y;
+				break;
+			}
+		}  // y
+		pCnt[(ty1 + ty2 + 1) >> 1]++;
+	}  // x
+	CY = 0;
+	for (y = 1; y < height; y++)
+	{
+		if (pCnt[y] > pCnt[CY])
+			CY = y;
+	}
+}
+
+void DrawCircle(BYTE *pGryImg, int width, int height, int x0, int y0, int r, int color)
+{
+	int theta, x, y;
+
+	for (theta = 0; theta < 360; theta++) //步长为1度
+	{
+		x = x0 + (int)(r*cos(theta*3.1415926 / 180));
+		y = y0 + (int)(r*sin(theta*3.1415926 / 180));
+		if ((x >= 0) && (x < width) &&
+			(y >= 0) && (y < height)
+			)
+		{
+			*(pGryImg + y * width + x) = color;
+		}
+	}
+	return;
+}
+
+
+void DrawData2ImgCol(int *pData, int nData,
+	double maxScale,
+	BYTE *pGryImg, int width, int height,
+	int color
+)
+{   //画在每列中
+	int x1, x2, y1;
+	int maxV, i;
+	int x, y;
+
+	// step.1-------------寻找最大值------------------------//
+	maxV = 0;
+	for (i = 0; i < nData; i++)
+	{
+		maxV = max(maxV, pData[i]);
+	}
+	maxV = (int)(maxV*maxScale);
+	// step.2-------------像素填充--------------------------//
+	for (i = 0; i < nData; i++)
+	{
+		y1 = (height - 1) - pData[i] * (height - 1) / (maxV + 1);
+		y1 = max(0, y1);
+		x1 = i * width / nData;
+		x2 = (i + 1)*width / nData;
+		for (x = x1; x < x2; x++)
+		{
+			for (y = height - 1; y > y1; y--) *(pGryImg + y * width + x) = color;
+		}
+	}
+	// step.3-------------结束------------------------------//
+	return;
+}
+
+void bmpConverter::DCCircle(int &CX, int &CY, int &mR)
+{
+	int sumX = 0, sumY = 0, pXSize = 2 * width + 2 * height, PixelNum = width * height;
+	int mxR = (int)(sqrt(width * width + height * height) / 2) + 1;
+	int *iMem = new int[width + height + mxR + pXSize * 2];
+	BYTE *bMem = new BYTE [width * height];
+	BYTE *pShowImg = bMem;
+	int *pCntX = iMem, *pCntY = pCntX + width, *pCntR = pCntY + height, *pX = pCntR + mxR, *pY = pX + pXSize;
+	//int *LUT = pY + pXSize;
+	int num = 0;
+	double maxScale = 0.5;
+	int x, y, i;
+	// 求中心CX, CY
+	getMidXY(pImg, pCntX, pCntY, width, height, CX, CY);
+	//getMidXY(pImg, pCntX, pCntX, width, height, CX, CY);
+	// 求边缘点
+	ZEdgDetect(pImg, width, height, pX, pY, num);
+	memset(pCntR, 0, sizeof(*pCntR) * mxR);
+	for (i = 0; i < num; i++)
+	{
+		int r = sqrt((pX[i] - CX) * (pX[i] - CX) + (pY[i] - CY) * (pY[i] - CY)) + 0.5;
+		pCntR[r]++;
+	}
+	mR = 0;
+	for (i = 1; i < num; i++)
+	{
+		if (pCntR[i] > pCntR[mR])
+		{
+			mR = i;
+		}
+	}
+	// 展示PX
+	memset(pShowImg, -1, sizeof(*pShowImg) * PixelNum);
+	DrawData2ImgCol(pCntX, width, maxScale, pShowImg, width, height, 0);
+	drawImg("./pic/_px1.bmp", pShowImg, width, height);
+	// 展示PY
+	memset(pShowImg, -1, sizeof(*pShowImg) * PixelNum);
+	DrawData2ImgCol(pCntY, height, maxScale, pShowImg, height, width, 0);
+	drawImg("./pic/_py1.bmp", pShowImg, height, width);
+	// 展示R
+	memset(pShowImg, -1, sizeof(*pShowImg) * PixelNum);
+	DrawData2ImgCol(pCntR, mxR, maxScale, pShowImg, mxR, height, 0);
+	drawImg("./pic/_R.bmp", pShowImg, mxR, height);
+
+	DrawCircle(pImg, width, height, CX, CY, mR, 254);
+
+	delete[] iMem;
+
+}
+
+void setImageBoundary(BYTE *pBinImg, int width, int height, BYTE color)
+{
+	BYTE *pRow;
+	int y;
+
+	memset(pBinImg, color, width);
+	memset(pBinImg + (height - 1)*width, color, width);
+	for (y = 0, pRow = pBinImg; y < height; y++, pRow += width)
+	{
+		*pRow = color;
+		*(pRow + width - 1) = color;
+	}
+	return;
+}
+
+void bmpConverter::chainCode_fill()
+{
+	const int PixelNum = width * height, MAX_CONOUR_LENGTH = PixelNum;
+	BYTE *bMem = new BYTE[PixelNum * 2];
+	BYTE *pChainCode = bMem, *pShowImg = pChainCode + PixelNum;
+	setImageBoundary(pImg, width, height, 0);
+	getChainCode_fill(pImg, pShowImg, pChainCode, width, height);
+	drawImg("./pic/_trace_fill.bmp", pShowImg, width, height);
+	delete[] bMem;
+}
+
+// 快速3x3膨胀
+void bmpConverter::fExpand33()
+{
+	const int PixelNum = width * height, MAX_CONOUR_LENGTH = PixelNum;
+	BYTE *bMem = new BYTE[PixelNum * 2];
+	BYTE *pChainCode = bMem, *pShowImg = pChainCode + PixelNum;
+	int i;
+
+	setImageBoundary(pImg, width, height, 0);
+	getChainCode_fill(pImg, pShowImg, pChainCode, width, height);
+	drawImg("./pic/_trace_fill.bmp", pShowImg, width, height);
+	//可用于3x3的快速膨胀
+	for (i = 0; i < width*height; i++)
+	{
+		pShowImg[i] = (pImg[i] <= 200) - 1;
+	}
+	drawImg("./pic/_expand.bmp", pShowImg, width, height);
+	delete[] bMem;
+}
+// 快速3x3腐蚀
+void bmpConverter::fcorrosion33()
+{
+	const int PixelNum = width * height, MAX_CONOUR_LENGTH = PixelNum;
+	BYTE *bMem = new BYTE[PixelNum * 2];
+	BYTE *pChainCode = bMem, *pShowImg = pChainCode + PixelNum;
+	int i;
+
+	setImageBoundary(pImg, width, height, 0);
+	getChainCode_fill(pImg, pShowImg, pChainCode, width, height);
+	//drawImg("./pic/_trace_fill.bmp", pShowImg, width, height);
+	//可用于3x3的快速膨胀
+	for (i = 0; i < width*height; i++)
+	{
+		pShowImg[i] = (pImg[i] != 255) - 1;
+	}
+	drawImg("./pic/_corrosion.bmp", pShowImg, width, height);
+	delete[] bMem;
+}
+
+
+void bmpConverter::test()
+{
+	int *imem = new int[512];
+	int *hist = imem, *scale_hist = hist + 256;
+	int thres, pixelNum = width * height;
+
+	memset(scale_hist, 0, sizeof(int) * 256);
+	getHist8b(pImg, pixelNum, hist);
+	for (int i = 0; i < 256; i++)scale_hist[i / 4] += hist[i];
+	thres = getOtsuThreshold8b(scale_hist, 256);
+	cout << "thres: "<<thres << endl;
+
+	PGry2Bin(pImg, pixelNum, thres, pImg);
+}
+
+

@@ -53,12 +53,42 @@ public:
 	Img AEadgeDectLaplacain_Gd2d1c(double a0=0.5, BYTE threshold=10, bool inplace=true);
 	// 边缘检测，sobel+沈俊算子
 	Img AEadgeDectsobel_ShenJun2d1c(double a0=0.5, BYTE threshold=64, bool inplace=true);
-
+	// 边缘检测canny算子
 	Img AEadgeCanny2d1c(double sigma, int Fsize, int uBound, int lBound, bool inplace = true);
-
+	// 数字检测
 	void num_dect();
 
+	// 图像二值化，otsu
+	void PBinOtsu2d1c();
+
+	void BinOtsu_test();
 	void test();
+	// 光照估计+图像减法+Otsu阈值法
+	void task_ImgSegmentation1();
+	// 多次分割法
+	void task_ImgSegmentation2();
+	// 聚类分割（kmeans）
+	void task_ImgSegmentation3();
+	// Otsu X2
+	void task_ImgSegmentation4();
+	// 聚类分割
+	void k_meansThreshold(int k);
+	// 霍夫检测四边形，逐个
+	void HoughLine1();
+	// 霍夫检测四边形，同时
+	void HoughLine2();
+	// 分治法求圆
+	void DCCircle(int &CX, int &CY, int &mR);
+	// 链码与填充
+	void chainCode_fill();
+	// 快速3x3膨胀
+	void fExpand33();
+	// 快速3x3腐蚀
+	void fcorrosion33();
+	// 飞机场
+	void air_port_track_dect();
+	// 画图
+	void hw6_draw(int x, int y);
 private:
 	void PHistogramEqualize14bit(short * pRawImg);
 	void PHistogramEqualize14bit2(short * pRawImg);
@@ -84,5 +114,8 @@ private:
 	// 缩小到1/16
 	void shrink16(BYTE *pSrc, int width, int heigt, BYTE *pDst);
 
+	void AAvgSmooth1d(int * hist, int width, int filterSize, int *dstHist);
+
+	void drawImg(const char * strDst, BYTE *pSrcImg, int width, int heigh);
 };
 
